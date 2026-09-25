@@ -1,5 +1,6 @@
 import express from 'express';
 import dotenv from 'dotenv';
+import { existsSync } from 'node:fs';
 
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
@@ -11,10 +12,29 @@ import {
 dotenv.config();
 
 const app = express();
+
+const allowedOrigins = new Set([
+  'http://localhost:3000',
+  'https://final-1ef53.web.app',
+  'https://final-1ef53.firebaseapp.com',
+]);
+
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
-  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  const origin = req.headers.origin;
+
+  if (origin && allowedOrigins.has(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+
+  res.header('Vary', 'Origin');
+  res.header(
+    'Access-Control-Allow-Methods',
+    'GET,POST,PUT,DELETE,OPTIONS'
+  );
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization'
+  );
 
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
@@ -30,9 +50,15 @@ const serviceAccountPath =
   '../final-1ef53-firebase-adminsdk-fbsvc-a3ad18a517.json';
 
 if (!getApps().length) {
-  initializeApp({
-    credential: cert(serviceAccountPath),
-  });
+  if (existsSync(serviceAccountPath)) {
+    // Local: dùng service account JSON trên máy
+    initializeApp({
+      credential: cert(serviceAccountPath),
+    });
+  } else {
+    // Cloud Run: dùng Google Application Default Credentials
+    initializeApp();
+  }
 }
 
 const auth = getAuth();

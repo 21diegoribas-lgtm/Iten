@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "provision:auth": "tsx scripts/provision-auth-users.ts"
+    "provision:auth": "tsx scripts/provision-auth-users.ts",
+    "start": "tsx server/index.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -18,12 +19,14 @@
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "firebase": "^12.18.0",
+    "firebase-admin": "^14.5.0",
     "jszip": "^3.10.1",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "pdfjs-dist": "^6.3.289",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
+    "tsx": "^4.23.15",
     "vite": "^6.2.3"
   },
   "devDependencies": {
@@ -31,9 +34,7 @@
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
-    "firebase-admin": "^14.3.0",
     "tailwindcss": "^4.1.14",
-    "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.3"
   }
