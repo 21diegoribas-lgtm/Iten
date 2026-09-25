@@ -1,0 +1,6 @@
+{
+  "name": "ITEN – A Friendly Home for Teachers and Students",
+  "description": "Ứng dụng giáo dục gamification thân thiện dành cho học sinh, giáo viên và quản trị viên",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

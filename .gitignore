@@ -1,0 +1,13 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+# Firebase Admin credentials / sensitive provisioning output
+*firebase-adminsdk*.json
+auth-reset-links.local.json
+
+auth-check.json

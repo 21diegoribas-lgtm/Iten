@@ -1,0 +1,542 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // 1. HELPER FUNCTIONS (AUTHENTICATION & ROLE VALIDATION)
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function userDocExists() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function getCurrentUserData() {
+      return userDocExists() 
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data 
+        : {};
+    }
+
+    function getUserRole() {
+      return userDocExists() && ('role' in getCurrentUserData()) 
+        ? getCurrentUserData().role 
+        : null;
+    }
+
+    function getUserClassId() {
+      return userDocExists() && ('classId' in getCurrentUserData())
+        ? getCurrentUserData().classId
+        : null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() == 'admin';
+    }
+
+    function isTeacher() {
+      return isAuthenticated() && getUserRole() == 'teacher';
+    }
+
+    function isStaff() {
+      return isAdmin() || isTeacher();
+    }
+
+    function isStudent() {
+      return isAuthenticated() && getUserRole() == 'student';
+    }
+
+    function isClassOfficer() {
+      return isStudent() && ('position' in getCurrentUserData()) &&
+        getCurrentUserData().position != 'thành viên';
+    }
+
+    function hasNoPasswordField() {
+      return !('password' in request.resource.data);
+    }
+
+    // ===============================================================
+    // 2. USERS COLLECTION
+    // Path: /users/{userId} (Document ID: Firebase Auth UID)
+    // ===============================================================
+    match /users/{userId} {
+      // READ:
+      // - Admin & Teacher: đọc phục vụ nghiệp vụ trường lớp
+      // - User: chỉ đọc profile chính mình
+      // - Unauthenticated: BỊ CHẶN (DENY)
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+
+      // CREATE:
+      // - Không cho phép tạo password trong Firestore
+      // - Admin: tạo bất kỳ tài khoản nào
+      // - Self-registration: chỉ tạo cho chính mình (userId == request.auth.uid) và role PHẢI là 'student'
+      // - CẤM tự tạo tài khoản với role 'admin' hoặc 'teacher'
+      allow create: if hasNoPasswordField() && (
+        isAdmin() || 
+        (isOwner(userId) && request.resource.data.role == 'student')
+      );
+
+      // UPDATE:
+      // - Admin: toàn quyền
+      // - Owner: cập nhật thông tin cá nhân nhưng:
+      //   + CẤM đổi role (role phải giữ nguyên: request.resource.data.role == resource.data.role)
+      //   + CẤM ghi password
+     allow update: if hasNoPasswordField() && (
+  isAdmin() ||
+  (
+    isOwner(userId) &&
+    request.resource.data.role == resource.data.role &&
+    request.resource.data.classId == resource.data.classId
+  )
+);
+
+      // DELETE:
+      // - Chỉ Admin
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // 3. STUDENTS COLLECTION
+    // Path: /students/{studentId} (Document ID: studentId)
+    // ===============================================================
+    match /students/{studentId} {
+      // READ:
+      // - Admin & Teacher: xem danh sách và hồ sơ học sinh
+      // - Student: CHỈ xem hồ sơ của chính mình hoặc cùng lớp
+      allow get: if isAuthenticated() && (isStaff() || isOwner(studentId));
+      allow list: if isAuthenticated() && (isStaff() || (isStudent() && resource.data.classId == getUserClassId()));
+
+      // CREATE:
+      // - Chỉ Admin và Teacher
+      // - Student: CẤM tạo (DENY)
+allow create: if hasNoPasswordField() && (
+      // UPDATE:
+      // - Admin & Teacher: cập nhật thông tin học sinh
+      // - Student (Owner): CHỈ được cập nhật các trường profile cá nhân:
+      //   ['phone', 'address', 'avatar', 'avatarId', 'updatedAt']
+      //   CẤM sửa: id, classId, className, studentCode, status, isUnionMember, position, team, notes...
+      isAdmin() ||
+  (
+    isTeacher() &&
+    request.resource.data.classId == getUserClassId()
+  )
+);
+
+allow update: if hasNoPasswordField() && (
+  isAdmin() ||
+  (
+    isTeacher() &&
+    resource.data.classId == getUserClassId() &&
+    request.resource.data.classId == resource.data.classId
+  ) ||
+  (
+    isOwner(studentId) &&
+    request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+      'phone', 'address', 'avatar', 'avatarId', 'updatedAt'
+    ])
+  )
+);
+
+      // DELETE:
+      // - Chỉ Admin
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // 4. TEACHERS COLLECTION
+    // Path: /teachers/{teacherId} (Document ID: teacherId)
+    // ===============================================================
+    match /teachers/{teacherId} {
+      // READ:
+      // - Đã đăng nhập (Admin, Teacher, Student) được xem thông tin liên hệ giáo viên
+      allow read: if isAuthenticated();
+
+      // CREATE:
+      // - Chỉ Admin
+      // - Teacher và Student: CẤM tạo
+      allow create: if hasNoPasswordField() && isAdmin();
+
+      // UPDATE:
+      // - Admin: toàn quyền
+      // - Teacher (Owner): chỉ được cập nhật các trường profile cá nhân:
+      //   ['phone', 'address', 'avatar', 'avatarId', 'updatedAt', 'notes']
+      //   CẤM sửa: teacherRole, subject, classId, className, status...
+      allow update: if hasNoPasswordField() && (
+        isAdmin() || 
+        (isTeacher() && isOwner(teacherId) && 
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'phone', 'address', 'avatar', 'avatarId', 'updatedAt', 'notes'
+          ])
+        )
+      );
+
+      // DELETE:
+      // - Chỉ Admin
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // 5. CLASSES COLLECTION
+    // Path: /classes/{classId} (Document ID: classId)
+    // ===============================================================
+    match /classes/{classId} {
+      // READ:
+      // - Admin & Teacher: đọc tất cả các lớp
+      // - Student: CHỈ đọc lớp của chính mình (classId == getUserClassId())
+      allow get: if isAuthenticated() && (isStaff() || classId == getUserClassId());
+      allow list: if isAuthenticated() && (isStaff() || (isStudent() && resource.id == getUserClassId()));
+
+      // CREATE:
+      // - Admin : được tạo lớp mới
+      // - Teacher - Student: CẤM tạo
+     allow create: if hasNoPasswordField() && isAdmin();
+
+      // UPDATE:
+      // - Admin & Teacher: cập nhật thông tin lớp
+      // - Student: CẤM sửa
+      allow update: if hasNoPasswordField() && (
+  isAdmin() ||
+  (
+    isTeacher() &&
+    resource.data.homeroomTeacher == request.auth.uid &&
+    request.resource.data.homeroomTeacher == resource.data.homeroomTeacher
+  )
+);
+
+      // DELETE:
+      // - Chỉ Admin (Teacher và Student: CẤM XÓA)
+      allow delete: if isAdmin();
+    }
+
+//===================================
+match /notifications/{notificationId} {
+  // Student/Teacher/Admin chỉ đọc notification phù hợp với chính mình.
+  allow get, list: if isAuthenticated() && (
+    isAdmin() ||
+    (
+      resource.data.targetType == 'all' &&
+      (
+        !('targetRole' in resource.data) ||
+        resource.data.targetRole == 'all' ||
+        resource.data.targetRole == getUserRole()
+      )
+    ) ||
+    (
+      resource.data.targetType == 'class' &&
+      resource.data.targetClassId == getUserClassId() &&
+      (
+        !('targetRole' in resource.data) ||
+        resource.data.targetRole == 'all' ||
+        resource.data.targetRole == getUserRole()
+      )
+    ) ||
+    (
+      resource.data.targetType == 'team' &&
+      resource.data.targetTeam == getCurrentUserData().team &&
+      (
+        !('targetRole' in resource.data) ||
+        resource.data.targetRole == 'all' ||
+        resource.data.targetRole == getUserRole()
+      )
+    ) ||
+    (
+      resource.data.targetType == 'student' &&
+      resource.data.targetStudentId == request.auth.uid
+    )
+  );
+
+  // Teacher chỉ được tạo thông báo cho lớp mình phụ trách.
+  allow create: if hasNoPasswordField() && (
+    isAdmin() ||
+    (
+      isTeacher() &&
+      request.resource.data.targetType == 'class' &&
+      request.resource.data.targetClassId == getUserClassId() &&
+      request.resource.data.senderName == getCurrentUserData().fullName &&
+      request.resource.data.senderRole == 'teacher'
+    )
+  );
+
+  // Chưa cho Teacher sửa/xóa vì chưa có createdBy.
+  // Chỉ Admin được sửa/xóa.
+  allow update, delete: if isAdmin();
+}
+
+    // ===============================================================
+    // 6. FLOWER GAMES COLLECTION
+    // One document per class: configuration and question bank.
+    // ===============================================================
+      match /flowerGames/{classId} {
+      // Personal gameplay history. Scores here do not grant ledger points.
+      match /players/{userId}/answers/{answerId} {
+        allow read: if isOwner(userId) && (isStaff() || classId == getUserClassId());
+        allow create, update: if isOwner(userId) &&
+          (isStaff() || classId == getUserClassId()) &&
+          request.resource.data.userId == userId &&
+          request.resource.data.classId == classId &&
+          request.resource.data.id == answerId &&
+          request.resource.data.pointsChange is number &&
+          request.resource.data.isCorrect is bool;
+        allow delete: if isOwner(userId) && isStaff();
+      }
+      allow get: if isAuthenticated() && (
+        isStaff() || (isStudent() && classId == getUserClassId())
+      );
+      allow list: if isStaff();
+        allow create, update, delete: if isStaff();
+      }
+
+      match /racingGames/{classId} {
+        match /players/{userId}/answers/{answerId} {
+          allow read: if isOwner(userId) && (isStaff() || classId == getUserClassId());
+          allow create, update: if isOwner(userId) &&
+            (isStaff() || classId == getUserClassId()) &&
+            request.resource.data.userId == userId &&
+            request.resource.data.classId == classId &&
+            request.resource.data.id == answerId &&
+            request.resource.data.pointsChange is number &&
+            request.resource.data.pointsChange >= -1 &&
+            request.resource.data.pointsChange <= 1 &&
+            request.resource.data.isCorrect is bool;
+          allow delete: if isOwner(userId) && isStaff();
+        }
+        allow get: if isAuthenticated() && (isStaff() || (isStudent() && classId == getUserClassId()));
+        allow list: if isStaff();
+        allow create, update, delete: if isStaff();
+      }
+
+      match /memoryGames/{classId} {
+        match /players/{userId}/results/{resultId} {
+          allow read: if isOwner(userId) && (isStaff() || classId == getUserClassId());
+          allow create, update: if isOwner(userId) &&
+            (isStaff() || classId == getUserClassId()) &&
+            request.resource.data.userId == userId && request.resource.data.classId == classId &&
+            request.resource.data.id == resultId && request.resource.data.score is number &&
+            request.resource.data.score >= 0 && request.resource.data.score <= 100 &&
+            request.resource.data.matchedPairs is number && request.resource.data.totalPairs is number &&
+            request.resource.data.score == request.resource.data.matchedPairs * 2 &&
+            request.resource.data.completed is bool;
+          allow delete: if isOwner(userId) && isStaff();
+        }
+        allow get: if isAuthenticated() && (isStaff() || (isStudent() && classId == getUserClassId()));
+        allow list: if isStaff();
+        allow create, update, delete: if isStaff();
+      }
+
+      match /keyboardTasks/{classId} {
+        allow get: if isAuthenticated() && (isStaff() || classId == getUserClassId());
+        allow list: if isStaff();
+        allow create, update, delete: if isStaff();
+
+        match /submissions/{submissionId} {
+          allow read: if isAuthenticated() && (isStaff() || classId == getUserClassId());
+          allow create: if isStudent() && classId == getUserClassId() &&
+            request.resource.data.studentId == request.auth.uid &&
+            request.resource.data.classId == classId &&
+            request.resource.data.id == submissionId &&
+            request.resource.data.content is string;
+          allow update: if
+            (isAdmin() || (isTeacher() && classId == getUserClassId())) ||
+            (
+              isStudent() && classId == getUserClassId() &&
+              resource.data.studentId == request.auth.uid &&
+              !resource.data.isGraded &&
+              request.resource.data.studentId == resource.data.studentId &&
+              request.resource.data.classId == resource.data.classId &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'content', 'wordCount', 'timeSpentSeconds', 'submittedAt', 'isLate',
+                'studentName', 'studentAvatar', 'team', 'updatedAt'
+              ])
+            ) ||
+            (
+              isAuthenticated() && classId == getUserClassId() &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'updatedAt'])
+            ) ||
+            (
+              isAuthenticated() && classId == getUserClassId() &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments', 'updatedAt'])
+            );
+          allow delete: if isAdmin() || (isOwner(resource.data.studentId) && !resource.data.isGraded);
+        }
+      }
+
+      match /spyGames/{classId} {
+        allow get: if isAuthenticated() && (isStaff() || classId == getUserClassId());
+        allow list: if isStaff();
+        allow create, update, delete: if isStaff();
+
+        match /votes/{voterId} {
+          allow read: if isAuthenticated() && (isStaff() || classId == getUserClassId());
+          allow create, update: if isOwner(voterId) && isStudent() && classId == getUserClassId() &&
+            request.resource.data.voterId == voterId && request.resource.data.classId == classId &&
+            request.resource.data.suspectIds is list && request.resource.data.suspectIds.size() <= 3 &&
+            get(/databases/$(database)/documents/spyGames/$(classId)).data.status == 'Đang diễn ra';
+          allow delete: if isOwner(voterId) || isStaff();
+        }
+      }
+
+      match /attendanceRecords/{recordId} {
+        allow read: if isAuthenticated() && (isAdmin() || resource.data.classId == getUserClassId());
+        allow create: if (isAdmin() || isTeacher() || isClassOfficer()) &&
+          (isAdmin() || request.resource.data.classId == getUserClassId()) &&
+          request.resource.data.id == recordId && request.resource.data.studentId is string &&
+          request.resource.data.date is string &&
+          request.resource.data.status in ['Có mặt', 'Vắng có phép', 'Vắng không phép', 'Đi muộn'];
+        allow update: if (isAdmin() || isTeacher() || isClassOfficer()) &&
+          request.resource.data.classId == resource.data.classId &&
+          (isAdmin() || resource.data.classId == getUserClassId()) &&
+          request.resource.data.studentId == resource.data.studentId &&
+          request.resource.data.date == resource.data.date;
+        allow delete: if isAdmin() || (isTeacher() && resource.data.classId == getUserClassId());
+      }
+
+      match /gardenConfigs/{classId} {
+        allow get: if isAuthenticated() && (isStaff() || classId == getUserClassId());
+        allow list: if isStaff();
+        allow create, update: if isAdmin() || (isTeacher() && classId == getUserClassId());
+        allow delete: if isAdmin();
+      }
+
+      match /gardenSpins/{spinId} {
+        allow read: if isAuthenticated() && (isAdmin() || resource.data.classId == getUserClassId());
+        allow create: if isAuthenticated() && request.resource.data.id == spinId &&
+          request.resource.data.classId == getUserClassId() &&
+          (request.resource.data.studentId == request.auth.uid || isStaff()) &&
+          request.resource.data.points is number && request.resource.data.points > 0 && request.resource.data.points <= 10 &&
+          getAfter(/databases/$(database)/documents/activityPoints/$(spinId)).data.id == spinId &&
+          getAfter(/databases/$(database)/documents/activityPoints/$(spinId)).data.userId == request.resource.data.studentId;
+        allow update: if false;
+        allow delete: if isAdmin();
+      }
+
+      match /gardenSpinUsage/{usageId} {
+        allow read: if isAuthenticated() && (isAdmin() || resource.data.classId == getUserClassId());
+        allow create: if isAuthenticated() && request.resource.data.id == usageId && request.resource.data.classId == getUserClassId() &&
+          (request.resource.data.studentId == request.auth.uid || isStaff()) && request.resource.data.count == 1;
+        allow update: if isAuthenticated() && resource.data.classId == getUserClassId() &&
+          (resource.data.studentId == request.auth.uid || isStaff()) &&
+          request.resource.data.classId == resource.data.classId && request.resource.data.studentId == resource.data.studentId &&
+          request.resource.data.week == resource.data.week && request.resource.data.count == resource.data.count + 1;
+        allow delete: if isAdmin() || (isTeacher() && resource.data.classId == getUserClassId());
+      }
+
+      // Official activity points. A student's Flower answer and point record
+      // must be committed together with the same immutable attempt ID.
+      match /activityPoints/{attemptId} {
+        allow get, list: if isAuthenticated() && (
+          resource.data.userId == request.auth.uid ||
+          isAdmin() ||
+          (isTeacher() && resource.data.classId == getUserClassId())
+        );
+
+        allow create: if isStudent() &&
+          request.resource.data.id == attemptId &&
+          request.resource.data.attemptId == attemptId &&
+          request.resource.data.userId == request.auth.uid &&
+          request.resource.data.classId == getUserClassId() &&
+          request.resource.data.source in ['flower', 'racing', 'memory'] &&
+          request.resource.data.points is number &&
+          request.resource.data.points >= -6 &&
+          request.resource.data.points <= 100 &&
+          request.resource.data.isCorrect is bool &&
+          request.resource.data.pointType in ['academic_activity', 'training_activity'] &&
+          (
+            (
+              request.resource.data.source == 'flower' &&
+              request.resource.data.points <= 6 &&
+              getAfter(/databases/$(database)/documents/flowerGames/$(request.resource.data.classId)/players/$(request.auth.uid)/answers/$(attemptId)).data.id == attemptId &&
+              getAfter(/databases/$(database)/documents/flowerGames/$(request.resource.data.classId)/players/$(request.auth.uid)/answers/$(attemptId)).data.userId == request.auth.uid &&
+              getAfter(/databases/$(database)/documents/flowerGames/$(request.resource.data.classId)/players/$(request.auth.uid)/answers/$(attemptId)).data.pointsChange == request.resource.data.points &&
+              getAfter(/databases/$(database)/documents/flowerGames/$(request.resource.data.classId)/players/$(request.auth.uid)/answers/$(attemptId)).data.isCorrect == request.resource.data.isCorrect
+            ) ||
+            (
+              request.resource.data.source == 'racing' &&
+              request.resource.data.points >= -1 &&
+              request.resource.data.points <= 1 &&
+              getAfter(/databases/$(database)/documents/racingGames/$(request.resource.data.classId)/players/$(request.auth.uid)/answers/$(attemptId)).data.id == attemptId &&
+              getAfter(/databases/$(database)/documents/racingGames/$(request.resource.data.classId)/players/$(request.auth.uid)/answers/$(attemptId)).data.userId == request.auth.uid &&
+              getAfter(/databases/$(database)/documents/racingGames/$(request.resource.data.classId)/players/$(request.auth.uid)/answers/$(attemptId)).data.pointsChange == request.resource.data.points &&
+              getAfter(/databases/$(database)/documents/racingGames/$(request.resource.data.classId)/players/$(request.auth.uid)/answers/$(attemptId)).data.isCorrect == request.resource.data.isCorrect
+            ) ||
+            (
+              request.resource.data.source == 'memory' &&
+              request.resource.data.points >= 0 &&
+              getAfter(/databases/$(database)/documents/memoryGames/$(request.resource.data.classId)/players/$(request.auth.uid)/results/$(attemptId)).data.id == attemptId &&
+              getAfter(/databases/$(database)/documents/memoryGames/$(request.resource.data.classId)/players/$(request.auth.uid)/results/$(attemptId)).data.userId == request.auth.uid &&
+              getAfter(/databases/$(database)/documents/memoryGames/$(request.resource.data.classId)/players/$(request.auth.uid)/results/$(attemptId)).data.score == request.resource.data.points
+            )
+          );
+
+        allow create: if (isAdmin() || (isTeacher() && request.resource.data.classId == getUserClassId())) &&
+          request.resource.data.id == attemptId && request.resource.data.attemptId == attemptId &&
+          request.resource.data.source == 'keyboard' &&
+          request.resource.data.points is number && request.resource.data.points >= 1 && request.resource.data.points <= 50 &&
+          request.resource.data.questionId is string &&
+          attemptId == 'keyboard_' + request.resource.data.questionId &&
+          getAfter(/databases/$(database)/documents/keyboardTasks/$(request.resource.data.classId)/submissions/$(request.resource.data.questionId)).data.studentId == request.resource.data.userId &&
+          getAfter(/databases/$(database)/documents/keyboardTasks/$(request.resource.data.classId)/submissions/$(request.resource.data.questionId)).data.isGraded == true &&
+          getAfter(/databases/$(database)/documents/keyboardTasks/$(request.resource.data.classId)/submissions/$(request.resource.data.questionId)).data.rewardPointsAwarded == request.resource.data.points;
+
+        allow create: if (isAdmin() || (isTeacher() && request.resource.data.classId == getUserClassId())) &&
+          request.resource.data.id == attemptId && request.resource.data.attemptId == attemptId &&
+          request.resource.data.source == 'spy' && request.resource.data.points is number &&
+          request.resource.data.points >= -50 && request.resource.data.points <= 150 &&
+          attemptId == 'spy_' + request.resource.data.activityId + '_' + request.resource.data.userId &&
+          getAfter(/databases/$(database)/documents/spyGames/$(request.resource.data.classId)).data.id == request.resource.data.activityId &&
+          getAfter(/databases/$(database)/documents/spyGames/$(request.resource.data.classId)).data.status != 'Đang diễn ra';
+
+        allow create: if (isAdmin() || (isTeacher() && request.resource.data.classId == getUserClassId())) &&
+          request.resource.data.id == attemptId && request.resource.data.attemptId == attemptId &&
+          request.resource.data.source == 'attendance' && request.resource.data.points == 5 &&
+          request.resource.data.pointType == 'training_activity';
+
+        allow create: if isAuthenticated() &&
+          request.resource.data.id == attemptId && request.resource.data.attemptId == attemptId &&
+          request.resource.data.source == 'garden' && request.resource.data.classId == getUserClassId() &&
+          (request.resource.data.userId == request.auth.uid || isStaff()) &&
+          request.resource.data.points is number && request.resource.data.points > 0 && request.resource.data.points <= 10 &&
+          request.resource.data.pointType in ['academic_activity', 'training_activity'] &&
+          getAfter(/databases/$(database)/documents/gardenSpins/$(attemptId)).data.id == attemptId &&
+          getAfter(/databases/$(database)/documents/gardenSpins/$(attemptId)).data.studentId == request.resource.data.userId;
+
+        // Retrying an already committed attempt may only refresh timestamps.
+        allow update: if isOwner(resource.data.userId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['createdAt', 'updatedAt']);
+        allow update: if resource.data.source == 'keyboard' &&
+          (isAdmin() || (isTeacher() && resource.data.classId == getUserClassId())) &&
+          request.resource.data.id == resource.data.id &&
+          request.resource.data.attemptId == resource.data.attemptId &&
+          request.resource.data.source == resource.data.source &&
+          request.resource.data.userId == resource.data.userId &&
+          request.resource.data.classId == resource.data.classId &&
+          request.resource.data.points >= 1 && request.resource.data.points <= 50 &&
+          getAfter(/databases/$(database)/documents/keyboardTasks/$(resource.data.classId)/submissions/$(resource.data.questionId)).data.rewardPointsAwarded == request.resource.data.points;
+        allow update: if resource.data.source == 'spy' &&
+          (isAdmin() || (isTeacher() && resource.data.classId == getUserClassId())) &&
+          request.resource.data.id == resource.data.id && request.resource.data.attemptId == resource.data.attemptId &&
+          request.resource.data.source == resource.data.source && request.resource.data.userId == resource.data.userId &&
+          request.resource.data.classId == resource.data.classId && request.resource.data.activityId == resource.data.activityId &&
+          request.resource.data.points >= -50 && request.resource.data.points <= 150;
+        allow update: if resource.data.source == 'attendance' &&
+          (isAdmin() || (isTeacher() && resource.data.classId == getUserClassId())) &&
+          request.resource.data.id == resource.data.id && request.resource.data.attemptId == resource.data.attemptId &&
+          request.resource.data.userId == resource.data.userId && request.resource.data.classId == resource.data.classId &&
+          request.resource.data.points == 5 && request.resource.data.pointType == 'training_activity';
+        allow delete: if isAdmin();
+      }
+
+    // ===============================================================
+    // 7. DEFAULT DENY ALL OTHER PATHS
+    // ===============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
