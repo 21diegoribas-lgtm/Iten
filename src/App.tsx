@@ -659,7 +659,7 @@ onResolveRequest={(id, status) => {
     const idToken = await auth.currentUser.getIdToken();
 
     const response = await fetch(
-      'http://localhost:3001/api/students/create',
+      `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/students/create`,
       {
         method: 'POST',
         headers: {
@@ -749,7 +749,7 @@ onAddStudentsBulk={async newStudents => {
 
   if (!auth.currentUser) throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
   const idToken = await auth.currentUser.getIdToken();
-  const response = await fetch('http://localhost:3001/api/students/create-bulk', {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/students/create-bulk`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
     body: JSON.stringify({ students: newStudents }),

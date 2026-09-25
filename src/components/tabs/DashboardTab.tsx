@@ -2915,7 +2915,7 @@ console.log('[CLASS DEBUG]', {
                     try {
                       if (!auth.currentUser) throw new Error('Phiên đăng nhập đã hết hạn.');
                       const idToken = await auth.currentUser.getIdToken();
-                      const response = await fetch('http://localhost:3001/api/students/read-google-sheet', {
+                      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/students/read-google-sheet`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
                         body: JSON.stringify({ url: studentSheetUrl.trim() }),
