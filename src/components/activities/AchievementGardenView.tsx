@@ -121,6 +121,18 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
   // Privileges
   const isTeacherOrAdmin = currentUser.role === 'teacher' || currentUser.role === 'admin';
 
+
+const scopedStudents =
+  currentUser.role === 'admin'
+    ? students
+    : currentUser.role === 'teacher'
+      ? students.filter(
+          st =>
+            (currentUser.classId && st.classId === currentUser.classId) ||
+            (currentUser.className && st.className === currentUser.className)
+        )
+      : students.filter(st => st.id === currentUser.id);
+
   // Category tabs: all / learning / discipline
   const [gardenSection, setGardenSection] = useState<'all' | 'learning' | 'discipline'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -371,10 +383,20 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
     return () => { cancelled = true; };
   }, [currentUser.classId, selectedSpinWeek]);
 
-  useEffect(() => {
-    if (currentUser.role === 'student') setSelectedStudentForBonus(currentUser.id);
-    else if (!students.some(student => student.id === selectedStudentForBonus)) setSelectedStudentForBonus(students[0]?.id || '');
-  }, [currentUser.id, currentUser.role, students, selectedStudentForBonus]);
+ useEffect(() => {
+  if (currentUser.role === 'student') {
+    setSelectedStudentForBonus(currentUser.id);
+  } else if (
+    !scopedStudents.some(student => student.id === selectedStudentForBonus)
+  ) {
+    setSelectedStudentForBonus(scopedStudents[0]?.id || '');
+  }
+}, [
+  currentUser.id,
+  currentUser.role,
+  scopedStudents,
+  selectedStudentForBonus
+]);
 
   useEffect(() => {
     if (!gardenLoaded.current || !isTeacherOrAdmin || !currentUser.classId) return;
@@ -537,7 +559,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
   // 1. Calculate Learning Scores per student (Filtered by Timeframe)
   const studentLearningMap = useMemo(() => {
     const map: { [studentId: string]: { totalPoints: number; count: number; recentRecords: LearningRecord[] } } = {};
-    students.forEach(st => {
+    scopedStudents.forEach(st => {
       map[st.id] = { totalPoints: 0, count: 0, recentRecords: [] };
     });
 
@@ -550,7 +572,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
     });
 
     return map;
-  }, [students, filteredLearningRecords]);
+  }, [scopedStudents, filteredLearningRecords]);
 
   // 2. Calculate Discipline Scores per student (Filtered by Timeframe)
   const studentDisciplineMap = useMemo(() => {
@@ -564,7 +586,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
       };
     } = {};
 
-    students.forEach(st => {
+    scopedStudents.forEach(st => {
       map[st.id] = { rewardPoints: 0, violationPoints: 0, netPoints: 0, count: 0, recentRecords: [] };
     });
 
@@ -582,7 +604,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
     });
 
     return map;
-  }, [students, filteredDisciplineRecords]);
+  }, [scopedStudents, filteredDisciplineRecords]);
 
   // Activity Category Mapping to satisfy Rule #11 (Dynamic reclassification when teacher changes activity category)
   const activityCategoryMap = useMemo(() => {
@@ -639,7 +661,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
       }
     > = {};
 
-    students.forEach((st) => {
+    scopedStudents.forEach((st) => {
       statsMap[st.id] = {
         student: st,
         academicActivityPoints: 0,
@@ -750,7 +772,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
     });
 
     return statsMap;
-  }, [students, filteredLearningRecords, filteredDisciplineRecords, activityCategoryMap]);
+  }, [scopedStudents, filteredLearningRecords, filteredDisciplineRecords, activityCategoryMap]);
 
   // Active student garden stats
   const currentViewStudentId = isTeacherOrAdmin ? (selectedStudentForBonus || currentUser.id) : currentUser.id;
@@ -770,7 +792,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
 
   // 3. Combined Student List with Full Stats
   const combinedStudentStats = useMemo(() => {
-    return students.map(st => {
+  return scopedStudents.map(st => {
       const gData = unifiedStudentGardenStats[st.id] || {
         academicActivityPoints: 0,
         trainingActivityPoints: 0,
@@ -801,7 +823,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
         totalActivityPoints: gData.totalActivityPoints
       };
     });
-  }, [students, studentLearningMap, studentDisciplineMap, unifiedStudentGardenStats]);
+  }, [scopedStudents, studentLearningMap, studentDisciplineMap, unifiedStudentGardenStats]);
 
   // Leaderboards
   const overallLeaderboard = useMemo(() => {
@@ -828,7 +850,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
       };
     } = {};
 
-    students.forEach((st) => {
+    scopedStudents.forEach((st) => {
       map[st.id] = {
         totalSpinPoints: 0,
         learningSpinPoints: 0,
@@ -854,7 +876,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
     });
 
     return map;
-  }, [students, spinHistory, timeframe, selectedSpinWeek]);
+ }, [scopedStudents, spinHistory, timeframe, selectedSpinWeek]);
 
   // Current logged in student's personal spin stats
   const currentUserSpinStats = useMemo(() => {
@@ -1024,7 +1046,9 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
     setWheelRotation(newRotation);
 
     const finalCategory = spinTargetCategory || effectiveAwardCategory;
-    const targetStudentObj = students.find((s) => s.id === selectedStudentForBonus);
+    const targetStudentObj = scopedStudents.find(
+  (s) => s.id === selectedStudentForBonus
+);
     const targetName = targetStudentObj?.fullName || currentUser.fullName;
     const classId = targetStudentObj?.classId || 'c1';
 
@@ -1293,7 +1317,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
                 }}
                 className="bg-slate-900 border border-emerald-500/40 rounded-xl px-2.5 py-1 text-xs font-black text-emerald-300 focus:ring-2 focus:ring-emerald-400 cursor-pointer"
               >
-                {students.map((st) => (
+                {scopedStudents.map((st) => (
                   <option key={st.id} value={st.id}>
                     {st.fullName} ({st.team || 'Cá nhân'})
                   </option>
@@ -2150,7 +2174,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
                     onChange={(e) => setSelectedStudentForBonus(e.target.value)}
                     className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-xs"
                   >
-                    {students.map((st) => (
+			{scopedStudents.map((st) => (
                       <option key={st.id} value={st.id}>
                         {st.fullName} ({st.team || 'Chưa xếp tổ'})
                       </option>
@@ -3018,7 +3042,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {students.map((st, index) => {
+                      {scopedStudents.map((st, index) => {
                         const spinInfo = getStudentSpinInfo(st.id);
                         return (
                           <tr key={st.id} className="hover:bg-slate-50 transition-colors">

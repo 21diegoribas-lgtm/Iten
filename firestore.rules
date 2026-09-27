@@ -127,15 +127,10 @@ service cloud.firestore {
       // - Chỉ Admin và Teacher
       // - Student: CẤM tạo (DENY)
 allow create: if hasNoPasswordField() && (
-      // UPDATE:
-      // - Admin & Teacher: cập nhật thông tin học sinh
-      // - Student (Owner): CHỈ được cập nhật các trường profile cá nhân:
-      //   ['phone', 'address', 'avatar', 'avatarId', 'updatedAt']
-      //   CẤM sửa: id, classId, className, studentCode, status, isUnionMember, position, team, notes...
-      isAdmin() ||
+  isAdmin() ||
   (
     isTeacher() &&
-    request.resource.data.classId == getUserClassId()
+    teacherManagesClass(request.resource.data.classId)
   )
 );
 
@@ -143,8 +138,8 @@ allow update: if hasNoPasswordField() && (
   isAdmin() ||
   (
     isTeacher() &&
-    resource.data.classId == getUserClassId() &&
-    request.resource.data.classId == resource.data.classId
+teacherManagesClass(resource.data.classId) &&
+request.resource.data.classId == resource.data.classId
   ) ||
   (
     isOwner(studentId) &&
@@ -207,15 +202,14 @@ allow update: if hasNoPasswordField() && (
       // - Admin : được tạo lớp mới
       // - Teacher - Student: CẤM tạo
      allow create: if hasNoPasswordField() && isAdmin();
-
       // UPDATE:
       // - Admin & Teacher: cập nhật thông tin lớp
       // - Student: CẤM sửa
-      allow update: if hasNoPasswordField() && (
+ allow update: if hasNoPasswordField() && (
   isAdmin() ||
   (
     isTeacher() &&
-    resource.data.homeroomTeacher == request.auth.uid &&
+    teacherManagesClass(classId) &&
     request.resource.data.homeroomTeacher == resource.data.homeroomTeacher
   )
 );
@@ -228,12 +222,46 @@ allow update: if hasNoPasswordField() && (
 //===================================
 match /notifications/{notificationId} {
   // Student/Teacher/Admin chỉ đọc notification phù hợp với chính mình.
-  allow get, list: if isAuthenticated() && (
-    isStaff() || resource.data.targetType == 'all' ||
-    (('targetClassId' in resource.data) && resource.data.targetClassId == getUserClassId()) ||
-    (('targetTeam' in resource.data) && resource.data.targetTeam == getCurrentUserData().team) ||
-    (('targetStudentId' in resource.data) && resource.data.targetStudentId == request.auth.uid)
-  );
+allow get, list: if isAuthenticated() && (
+  isAdmin() ||
+
+  (
+    resource.data.targetType == 'all' &&
+    (
+      !('targetRole' in resource.data) ||
+      resource.data.targetRole == 'all' ||
+      resource.data.targetRole == getUserRole()
+    )
+  ) ||
+
+  (
+    resource.data.targetType == 'class' &&
+    (
+      resource.data.targetClassId == getUserClassId() ||
+      teacherManagesClass(resource.data.targetClassId)
+    ) &&
+    (
+      !('targetRole' in resource.data) ||
+      resource.data.targetRole == 'all' ||
+      resource.data.targetRole == getUserRole()
+    )
+  ) ||
+
+  (
+    resource.data.targetType == 'team' &&
+    resource.data.targetTeam == getCurrentUserData().team &&
+    (
+      !('targetRole' in resource.data) ||
+      resource.data.targetRole == 'all' ||
+      resource.data.targetRole == getUserRole()
+    )
+  ) ||
+
+  (
+    resource.data.targetType == 'student' &&
+    resource.data.targetStudentId == request.auth.uid
+  )
+);
 
   // Teacher chỉ được tạo thông báo cho lớp mình phụ trách.
   allow create: if hasNoPasswordField() && (
@@ -241,7 +269,7 @@ match /notifications/{notificationId} {
     (
       isTeacher() &&
       request.resource.data.targetType == 'class' &&
-      request.resource.data.targetClassId == getUserClassId() &&
+      teacherManagesClass(request.resource.data.targetClassId) &&
       request.resource.data.senderName == getCurrentUserData().fullName &&
       request.resource.data.senderRole == 'teacher'
     )
@@ -392,69 +420,413 @@ match /notifications/{notificationId} {
       }
 
       match /timetables/{itemId} {
-        allow read: if isAuthenticated() && (isAdmin() || resource.data.classId == getUserClassId() || teacherManagesClass(resource.data.classId));
-        allow create, update: if isAdmin() || teacherManagesClass(request.resource.data.classId) ||
-          (isClassOfficer() && request.resource.data.classId == getUserClassId());
-        allow delete: if isAdmin() || teacherManagesClass(resource.data.classId);
-      }
+  allow read: if isAuthenticated() && (
+    isAdmin() ||
+    resource.data.classId == getUserClassId() ||
+    teacherManagesClass(resource.data.classId)
+  );
+
+  allow create: if
+    isAdmin() ||
+    teacherManagesClass(request.resource.data.classId) ||
+    (
+      isClassOfficer() &&
+      request.resource.data.classId == getUserClassId()
+    );
+
+  allow update: if
+    request.resource.data.classId == resource.data.classId &&
+    (
+      isAdmin() ||
+      teacherManagesClass(resource.data.classId) ||
+      (
+        isClassOfficer() &&
+        resource.data.classId == getUserClassId()
+      )
+    );
+
+  allow delete: if
+    isAdmin() ||
+    teacherManagesClass(resource.data.classId);
+}
 
       match /teacherSchedules/{itemId} {
-        allow read: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
-        allow create, update: if isAdmin() || (isTeacher() && request.resource.data.teacherId == request.auth.uid);
-        allow delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
-      }
+  allow read: if
+    isAdmin() ||
+    (
+      isTeacher() &&
+      resource.data.teacherId == request.auth.uid
+    );
 
-      match /teacherWeeklyTimetables/{itemId} {
-        allow read: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
-        allow create, update: if isAdmin() || (isTeacher() && request.resource.data.teacherId == request.auth.uid);
-        allow delete: if isAdmin() || (isTeacher() && resource.data.teacherId == request.auth.uid);
-      }
+  allow create: if
+    isAdmin() ||
+    (
+      isTeacher() &&
+      request.resource.data.teacherId == request.auth.uid
+    );
+
+  allow update: if
+    isAdmin() ||
+    (
+      isTeacher() &&
+      resource.data.teacherId == request.auth.uid &&
+      request.resource.data.teacherId == resource.data.teacherId
+    );
+
+  allow delete: if
+    isAdmin() ||
+    (
+      isTeacher() &&
+      resource.data.teacherId == request.auth.uid
+    );
+}
+
+match /teacherWeeklyTimetables/{itemId} {
+  allow read: if
+    isAdmin() ||
+    (
+      isTeacher() &&
+      resource.data.teacherId == request.auth.uid
+    );
+
+  allow create: if
+    isAdmin() ||
+    (
+      isTeacher() &&
+      request.resource.data.teacherId == request.auth.uid
+    );
+
+  allow update: if
+    isAdmin() ||
+    (
+      isTeacher() &&
+      resource.data.teacherId == request.auth.uid &&
+      request.resource.data.teacherId == resource.data.teacherId
+    );
+
+  allow delete: if
+    isAdmin() ||
+    (
+      isTeacher() &&
+      resource.data.teacherId == request.auth.uid
+    );
+}
 
       match /complaints/{itemId} {
-        allow read: if isStaff() || (isStudent() && resource.data.studentId == request.auth.uid);
-        allow create: if isStudent() && request.resource.data.studentId == request.auth.uid;
-        allow update: if isStaff() || (isStudent() && resource.data.studentId == request.auth.uid && resource.data.status == 'Đang chờ');
-        allow delete: if isAdmin();
-      }
+  allow read: if
+    isAdmin() ||
+    (
+      isTeacher() &&
+      resource.data.className == getCurrentUserData().className
+    ) ||
+    (
+      isStudent() &&
+      resource.data.studentId == request.auth.uid
+    );
 
-      match /accountRequests/{itemId} {
-        allow read: if isStaff() || resource.data.userId == request.auth.uid;
-        allow create: if request.resource.data.userId == request.auth.uid;
-        allow update: if isStaff();
-        allow delete: if isAdmin();
-      }
+  allow create: if
+    isStudent() &&
+    request.resource.data.studentId == request.auth.uid &&
+    request.resource.data.id == itemId &&
+    request.resource.data.status == 'Đang chờ' &&
+    request.resource.data.studentName is string &&
+    request.resource.data.className == getCurrentUserData().className &&
+    request.resource.data.title is string &&
+    request.resource.data.content is string &&
+    request.resource.data.target in ['cán sự lớp', 'giáo viên'] &&
+    request.resource.data.createdAt is string &&
+    !('response' in request.resource.data);
+
+  allow update: if
+    isAdmin() ||
+    (
+      isTeacher() &&
+      resource.data.className == getCurrentUserData().className &&
+      request.resource.data.studentId == resource.data.studentId &&
+      request.resource.data.className == resource.data.className &&
+      request.resource.data.id == resource.data.id &&
+      request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        'status',
+        'response'
+      ])
+    );
+
+  allow delete: if isAdmin();
+}
+
+    match /accountRequests/{itemId} {
+  allow read: if
+    isAdmin() ||
+    (
+      isAuthenticated() &&
+      resource.data.userId == request.auth.uid
+    );
+
+  allow create: if
+    isAuthenticated() &&
+    request.resource.data.userId == request.auth.uid &&
+    request.resource.data.id == itemId &&
+    request.resource.data.role == getUserRole() &&
+    request.resource.data.type in ['reset_password', 'update_profile'] &&
+    request.resource.data.status == 'Chờ duyệt' &&
+    request.resource.data.userName is string &&
+    request.resource.data.details is string &&
+    request.resource.data.createdAt is string &&
+    request.resource.data.keys().hasOnly([
+      'id',
+      'userId',
+      'userName',
+      'role',
+      'type',
+      'details',
+      'status',
+      'createdAt'
+    ]);
+
+  allow update: if
+    isAdmin() &&
+    request.resource.data.id == resource.data.id &&
+    request.resource.data.userId == resource.data.userId &&
+    request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+      'status'
+    ]) &&
+    request.resource.data.status in ['Đã duyệt', 'Từ chối'];
+
+  allow delete: if isAdmin();
+}
 
       match /personalStorageItems/{itemId} {
-        allow read: if resource.data.userId == request.auth.uid;
-        allow create: if request.resource.data.userId == request.auth.uid;
-        allow update: if resource.data.userId == request.auth.uid && request.resource.data.userId == resource.data.userId;
-        allow delete: if resource.data.userId == request.auth.uid;
-      }
+  allow read: if
+    isAuthenticated() &&
+    resource.data.userId == request.auth.uid;
 
-      match /classFunds/{itemId} {
-        allow read: if isAuthenticated() && (isAdmin() || resource.data.classId == getUserClassId() || teacherManagesClass(resource.data.classId));
-        allow create, update: if isAdmin() || teacherManagesClass(request.resource.data.classId);
-        allow delete: if isAdmin() || teacherManagesClass(resource.data.classId);
-      }
+  allow create: if
+    isAuthenticated() &&
+    request.resource.data.userId == request.auth.uid &&
+    request.resource.data.id == itemId &&
+    request.resource.data.title is string &&
+    request.resource.data.type in ['table', 'blank'] &&
+    request.resource.data.updatedAt is string &&
+    request.resource.data.keys().hasOnly([
+      'id',
+      'userId',
+      'title',
+      'type',
+      'tableData',
+      'blankContent',
+      'updatedAt'
+    ]) &&
+    (
+      (
+        request.resource.data.type == 'table' &&
+        ('tableData' in request.resource.data) &&
+        !('blankContent' in request.resource.data) &&
+        request.resource.data.tableData.rows is int &&
+        request.resource.data.tableData.cols is int &&
+        request.resource.data.tableData.data is list &&
+        request.resource.data.tableData.headers is list
+      ) ||
+      (
+        request.resource.data.type == 'blank' &&
+        ('blankContent' in request.resource.data) &&
+        request.resource.data.blankContent is string &&
+        !('tableData' in request.resource.data)
+      )
+    );
 
-      match /classExpenses/{itemId} {
-        allow read: if isAuthenticated() && (isAdmin() || resource.data.classId == getUserClassId() || teacherManagesClass(resource.data.classId));
-        allow create, update: if isAdmin() || teacherManagesClass(request.resource.data.classId);
-        allow delete: if isAdmin() || teacherManagesClass(resource.data.classId);
-      }
+  allow update: if false;
+
+  allow delete: if
+    isAuthenticated() &&
+    resource.data.userId == request.auth.uid;
+}
+
+    match /classFunds/{itemId} {
+  allow read: if isAuthenticated() && (
+    isAdmin() ||
+    resource.data.classId == getUserClassId() ||
+    teacherManagesClass(resource.data.classId)
+  );
+
+  allow create: if
+    (isAdmin() || teacherManagesClass(request.resource.data.classId)) &&
+    request.resource.data.id == itemId &&
+    request.resource.data.classId is string &&
+    request.resource.data.className is string &&
+    request.resource.data.academicYear is string &&
+    request.resource.data.semester in ['Học kỳ 1', 'Học kỳ 2'] &&
+    request.resource.data.periodType in ['week', 'semester', 'year', 'custom'] &&
+    request.resource.data.title is string &&
+    request.resource.data.amountPerStudent is number &&
+    request.resource.data.amountPerStudent >= 0 &&
+    request.resource.data.createdAt is string &&
+    request.resource.data.createdBy is string &&
+    request.resource.data.status in ['active', 'closed'] &&
+    request.resource.data.contributions is map &&
+    request.resource.data.keys().hasOnly([
+      'id',
+      'classId',
+      'className',
+      'academicYear',
+      'semester',
+      'weekNumber',
+      'periodType',
+      'title',
+      'amountPerStudent',
+      'dueDate',
+      'createdAt',
+      'createdBy',
+      'createdById',
+      'notes',
+      'status',
+      'contributions'
+    ]);
+
+  allow update: if
+    (
+      isAdmin() ||
+      teacherManagesClass(resource.data.classId)
+    ) &&
+    request.resource.data.id == resource.data.id &&
+    request.resource.data.classId == resource.data.classId &&
+    request.resource.data.contributions is map &&
+    request.resource.data.amountPerStudent is number &&
+    request.resource.data.amountPerStudent >= 0;
+
+  allow delete: if
+    isAdmin() ||
+    teacherManagesClass(resource.data.classId);
+}
+
+match /classExpenses/{itemId} {
+  allow read: if isAuthenticated() && (
+    isAdmin() ||
+    resource.data.classId == getUserClassId() ||
+    teacherManagesClass(resource.data.classId)
+  );
+
+  allow create: if
+    (isAdmin() || teacherManagesClass(request.resource.data.classId)) &&
+    request.resource.data.id == itemId &&
+    request.resource.data.classId is string &&
+    request.resource.data.className is string &&
+    request.resource.data.academicYear is string &&
+    request.resource.data.semester in ['Học kỳ 1', 'Học kỳ 2'] &&
+    request.resource.data.title is string &&
+    request.resource.data.amount is number &&
+    request.resource.data.amount > 0 &&
+    request.resource.data.date is string &&
+    request.resource.data.spentBy is string &&
+    request.resource.data.category is string &&
+    request.resource.data.keys().hasOnly([
+      'id',
+      'classId',
+      'className',
+      'academicYear',
+      'semester',
+      'weekNumber',
+      'title',
+      'amount',
+      'date',
+      'spentBy',
+      'spentById',
+      'category',
+      'receiptNote'
+    ]);
+
+  allow update: if
+    (
+      isAdmin() ||
+      teacherManagesClass(resource.data.classId)
+    ) &&
+    request.resource.data.id == resource.data.id &&
+    request.resource.data.classId == resource.data.classId &&
+    request.resource.data.amount is number &&
+    request.resource.data.amount > 0;
+
+  allow delete: if
+    isAdmin() ||
+    teacherManagesClass(resource.data.classId);
+}
 
       match /classLogbooks/{itemId} {
-        allow read: if isAuthenticated() && (isAdmin() || resource.data.classId == getUserClassId() || teacherManagesClass(resource.data.classId));
-        allow create, update: if isAdmin() || teacherManagesClass(request.resource.data.classId) ||
-          (isClassOfficer() && request.resource.data.classId == getUserClassId());
-        allow delete: if isAdmin() || teacherManagesClass(resource.data.classId);
-      }
+  allow read: if isAuthenticated() && (
+    isAdmin() ||
+    resource.data.classId == getUserClassId() ||
+    teacherManagesClass(resource.data.classId)
+  );
+
+  allow create: if
+    (isAdmin() || teacherManagesClass(request.resource.data.classId)) &&
+    request.resource.data.id == itemId;
+
+  allow update: if
+    (isAdmin() || teacherManagesClass(resource.data.classId)) &&
+    request.resource.data.id == resource.data.id &&
+    request.resource.data.classId == resource.data.classId;
+
+  allow delete: if
+    isAdmin() ||
+    teacherManagesClass(resource.data.classId);
+}
 
       match /pointUsageTransactions/{itemId} {
-        allow read: if isStaff() || resource.data.studentId == request.auth.uid;
-        allow create, update: if isStaff();
-        allow delete: if isAdmin();
-      }
+  allow read: if
+    isAdmin() ||
+    (
+      isTeacher() &&
+      resource.data.className == getCurrentUserData().className
+    ) ||
+    (
+      isStudent() &&
+      resource.data.studentId == request.auth.uid
+    );
+
+  allow create: if
+    (
+      isAdmin() ||
+      (
+        isTeacher() &&
+        exists(/databases/$(database)/documents/students/$(request.resource.data.studentId)) &&
+        get(/databases/$(database)/documents/students/$(request.resource.data.studentId)).data.classId == getUserClassId()
+      )
+    ) &&
+    request.resource.data.id == itemId &&
+    request.resource.data.studentId is string &&
+    request.resource.data.studentName is string &&
+    request.resource.data.pointType in ['academic', 'training'] &&
+    request.resource.data.amount is number &&
+    request.resource.data.amount > 0 &&
+    request.resource.data.content is string &&
+    request.resource.data.date is string &&
+    request.resource.data.performedBy == getCurrentUserData().fullName &&
+    request.resource.data.status == 'active' &&
+    (
+      (isAdmin() && request.resource.data.performedRole == 'Quản trị viên') ||
+      (isTeacher() && request.resource.data.performedRole == 'Giáo viên')
+    );
+
+  allow update: if
+    (
+      isAdmin() ||
+      (
+        isTeacher() &&
+        exists(/databases/$(database)/documents/students/$(resource.data.studentId)) &&
+        get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.classId == getUserClassId()
+      )
+    ) &&
+    resource.data.status == 'active' &&
+    request.resource.data.status == 'cancelled' &&
+    request.resource.data.cancelledBy == getCurrentUserData().fullName &&
+    request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+      'status',
+      'cancelledAt',
+      'cancelledBy',
+      'cancelledReason'
+    ]);
+
+  allow delete: if isAdmin();
+}
 
       match /gardenConfigs/{classId} {
         allow get: if isAuthenticated() && (isStaff() || classId == getUserClassId());
