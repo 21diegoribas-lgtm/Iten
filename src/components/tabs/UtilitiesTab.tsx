@@ -8,8 +8,9 @@ import { DiceTableScene } from '../game-ui/DiceTableScene';
 import { FishingPondScene } from '../game-ui/FishingPondScene';
 import { LotteryScene } from '../game-ui/lottery/LotteryScene';
 import { TeacherStopwatchTimer } from '../game-ui/TeacherStopwatchTimer';
-import { ResourceRepository } from '../resources/ResourceRepository';
-import { Dice5, Ticket, FolderArchive, Plus, Edit3, Trash2, Sparkles, RotateCw, Trophy, Fish, Timer, FolderHeart } from 'lucide-react';
+import { PresentationRepository } from '../presentation/PresentationRepository';
+import { YouTubeVideoRepository } from '../resources/YouTubeVideoRepository';
+import { Dice5, Ticket, FolderArchive, Plus, Edit3, Trash2, Sparkles, RotateCw, Trophy, Fish, Timer, FolderHeart, Youtube } from 'lucide-react';
 
 interface UtilitiesTabProps {
   currentUser: User;
@@ -31,7 +32,7 @@ export const UtilitiesTab: React.FC<UtilitiesTabProps> = ({
   onSelectStudent
 }) => {
   const isTeacherOrAdmin = currentUser.role === 'teacher' || currentUser.role === 'admin';
-  const [subUtility, setSubUtility] = useState<'resources' | 'timer' | 'fishing' | 'lottery' | 'dice' | 'storage'>(
+  const [subUtility, setSubUtility] = useState<'resources' | 'youtube' | 'timer' | 'fishing' | 'lottery' | 'dice' | 'storage'>(
     isTeacherOrAdmin ? 'resources' : 'timer'
   );
 
@@ -86,7 +87,19 @@ export const UtilitiesTab: React.FC<UtilitiesTabProps> = ({
                 : 'bg-slate-50 text-slate-700 hover:bg-amber-50'
             }`}
           >
-            <FolderHeart className="w-4 h-4 text-amber-300" /> 📚 Kho tài nguyên & Bài giảng
+            <FolderHeart className="w-4 h-4 text-amber-300" /> 📊 Kho bài giảng PowerPoint
+          </button>
+        )}
+        {isTeacherOrAdmin && (
+          <button
+            onClick={() => { soundFx.playClick(); setSubUtility('youtube'); }}
+            className={`px-5 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer ${
+              subUtility === 'youtube'
+                ? 'bg-red-600 text-white shadow-[0_3px_0_#991B1B]'
+                : 'bg-slate-50 text-slate-700 hover:bg-red-50'
+            }`}
+          >
+            <Youtube className="w-4 h-4" /> Video YouTube
           </button>
         )}
         <button
@@ -141,9 +154,13 @@ export const UtilitiesTab: React.FC<UtilitiesTabProps> = ({
         </button>
       </div>
 
-      {/* 0. KHO TÀI NGUYÊN & BÀI GIẢNG ITEN (TEACHER & ADMIN ONLY) */}
+      {/* KHO BÀI GIẢNG POWERPOINT (TEACHER & ADMIN ONLY) */}
       {subUtility === 'resources' && isTeacherOrAdmin && (
-        <ResourceRepository currentUser={currentUser} />
+        <PresentationRepository currentUser={currentUser} />
+      )}
+
+      {subUtility === 'youtube' && isTeacherOrAdmin && (
+        <YouTubeVideoRepository currentUser={currentUser} />
       )}
 
       {/* 0. ĐỒNG HỒ BẤM GIỜ & ĐẾM NGƯỢC (TEACHER STOPWATCH & TIMER) */}

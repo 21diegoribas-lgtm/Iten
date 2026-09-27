@@ -1,6 +1,10 @@
-import { collection, doc, getDocs, limit, query, serverTimestamp, where, writeBatch } from 'firebase/firestore';
+import { collection, deleteField, doc, getDocs, limit, query, serverTimestamp, where, writeBatch } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { ActivityPointRecord, AttendanceRecord } from '../types';
+
+function withoutUndefined<T extends object>(value: T): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined));
+}
 
 export function attendanceRecordId(classId: string, studentId: string, date: string): string {
   return `${classId}_${studentId}_${date}`.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -20,7 +24,9 @@ export async function saveAttendanceRecords(records: AttendanceRecord[]): Promis
   records.forEach(record => {
     if (!record.classId || !record.studentId || !/^\d{4}-\d{2}-\d{2}$/.test(record.date)) throw new Error('Bản ghi điểm danh không hợp lệ.');
     const id = attendanceRecordId(record.classId, record.studentId, record.date);
-    batch.set(doc(db, 'attendanceRecords', id), { ...record, id, updatedAt: serverTimestamp() }, { merge: true });
+    const data = withoutUndefined(record);
+    if (record.note === undefined) data.note = deleteField();
+    batch.set(doc(db, 'attendanceRecords', id), { ...data, id, updatedAt: serverTimestamp() }, { merge: true });
   });
   await batch.commit();
 }
@@ -30,7 +36,7 @@ export async function awardAttendancePoints(points: ActivityPointRecord[]): Prom
   const batch = writeBatch(db);
   points.forEach(point => {
     if (point.source !== 'attendance' || point.points !== 5) throw new Error('Điểm chuyên cần không hợp lệ.');
-    batch.set(doc(db, 'activityPoints', point.id), { ...point, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
+    batch.set(doc(db, 'activityPoints', point.id), { ...withoutUndefined(point), createdAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
   });
   await batch.commit();
 }

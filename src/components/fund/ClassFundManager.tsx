@@ -117,7 +117,7 @@ export const ClassFundManager: React.FC<ClassFundManagerProps> = ({
   const userTeam = currentUser.team || '';
 
   // Class list filter (for class 8A1 or user's class)
-  const currentClassName = currentUser.className || 'Lớp 8A1';
+  const currentClassName = currentUser.className || '';
   const classStudents = useMemo(() => {
     return students.filter(s => !s.className || s.className === currentClassName || currentUser.role === 'admin');
   }, [students, currentClassName, currentUser.role]);

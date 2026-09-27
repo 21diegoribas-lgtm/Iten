@@ -1,5 +1,4 @@
 import { ResourceItem } from '../types';
-import { getInitialDemoResources } from '../data/sampleResources';
 
 const DB_NAME = 'iten_resources_db';
 const DB_VERSION = 1;

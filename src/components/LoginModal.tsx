@@ -11,6 +11,9 @@ import {
   KeyRound,
   User as UserIcon,
   LogIn,
+  Eye,
+  EyeOff,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface LoginModalProps {
@@ -23,6 +26,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [capsLockOn, setCapsLockOn] = useState(false);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,7 +104,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onLogin }) => {
         🌟
       </div>
 
-      <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl shadow-[0_16px_40px_rgba(2,132,199,0.25)] border-4 border-[#BAE6FD] p-8 relative z-10 animate-in fade-in zoom-in-95 duration-300">
+      <div className="w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl shadow-[0_16px_40px_rgba(2,132,199,0.25)] border-4 border-[#BAE6FD] p-5 sm:p-8 relative z-10 animate-in fade-in zoom-in-95 duration-300 max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <div className="text-center mb-7">
           <div className="w-20 h-20 bg-gradient-to-b from-[#38BDF8] via-[#0284C7] to-[#0369A1] rounded-3xl mx-auto flex items-center justify-center text-4xl shadow-[0_6px_0_#075985] border-2 border-white transform -rotate-3 hover:rotate-0 transition-transform mb-3">
             💙
@@ -205,16 +210,33 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onLogin }) => {
               </span>
 
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 border-2 border-[#BAE6FD] rounded-2xl text-sm font-bold text-slate-800 focus:outline-none focus:border-[#0284C7] focus:bg-white transition-all shadow-inner"
+                onKeyDown={e => setCapsLockOn(e.getModifierState('CapsLock'))}
+                onKeyUp={e => setCapsLockOn(e.getModifierState('CapsLock'))}
+                onBlur={() => setCapsLockOn(false)}
+                className="w-full pl-10 pr-12 py-3 bg-slate-50 border-2 border-[#BAE6FD] rounded-2xl text-sm font-bold text-slate-800 focus:outline-none focus:border-[#0284C7] focus:bg-white transition-all shadow-inner"
                 placeholder="Nhập mật khẩu..."
                 autoComplete="current-password"
                 required
                 disabled={isLoading}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(value => !value)}
+                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-[#0284C7] cursor-pointer"
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
+            {capsLockOn && (
+              <p className="mt-1.5 text-[11px] font-bold text-amber-600 flex items-center gap-1">
+                <AlertTriangle className="w-3.5 h-3.5" /> Caps Lock đang bật
+              </p>
+            )}
           </div>
 
           {error && (

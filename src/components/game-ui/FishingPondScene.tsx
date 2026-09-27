@@ -3,6 +3,7 @@ import { User } from '../../types';
 import { soundFx } from '../../utils/sound';
 import { getAvatarUrl } from '../../utils/avatarHelper';
 import { Game3DButton } from './Game3DButton';
+import { useGameMusic } from '../../hooks/useGameMusic';
 import {
   Sparkles,
   Volume2,
@@ -74,6 +75,7 @@ export const FishingPondScene: React.FC<FishingPondSceneProps> = ({
   const [showCelebrationModal, setShowCelebrationModal] = useState<boolean>(false);
   const [awardedFeedback, setAwardedFeedback] = useState<string | null>(null);
   const [customReason, setCustomReason] = useState<string>('Phát biểu trả lời câu hỏi Ao Cá May Mắn');
+  const gameMusic = useGameMusic('fishing');
 
   // Interactive Bait position & facing direction
   const [baitPos, setBaitPos] = useState<{ x: number; y: number }>({ x: 55, y: 65 });
@@ -124,7 +126,7 @@ export const FishingPondScene: React.FC<FishingPondSceneProps> = ({
   });
 
   const availableStudentsForPool = filteredStudents.length > 0 ? filteredStudents : students;
-  const classes = Array.from(new Set(students.map((s) => s.className || 'Lớp 8A1')));
+  const classes = Array.from(new Set(students.map((s) => s.className || 'Chưa gán lớp')));
 
   // Initialize Fish School
   useEffect(() => {
@@ -241,21 +243,24 @@ export const FishingPondScene: React.FC<FishingPondSceneProps> = ({
             }
             nextChat = undefined;
           } else if (fishingState === 'racing') {
-            // ALL FISH RACE ENERGETICALLY TOWARD THE TOUCHED BAIT POSITION!
-            const dx = baitPos.x - fish.currentX;
-            const dy = baitPos.y - fish.currentY;
+            // Fish repeatedly approach and retreat around the bait before one bites.
+            const orbitAngle = time * 0.0025 + fish.wobblePhase;
+            const suspenseRadius = 5 + (Math.sin(time * 0.004 + fish.wobblePhase) + 1) * 7;
+            const targetX = baitPos.x + Math.cos(orbitAngle) * suspenseRadius;
+            const targetY = baitPos.y + Math.sin(orbitAngle) * suspenseRadius * 0.55;
+            const dx = targetX - fish.currentX;
+            const dy = targetY - fish.currentY;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
             nextDir = dx >= 0 ? 1 : -1;
 
-            if (dist > 4) {
-              const raceSpeed = fish.speed * 280 * delta;
+            if (dist > 1.5) {
+              const raceSpeed = fish.speed * 230 * delta;
               nextX += (dx / dist) * raceSpeed;
               nextY += (dy / dist) * raceSpeed;
             } else {
-              const angle = time * 0.006 + fish.wobblePhase;
-              nextX = baitPos.x + Math.cos(angle) * (3 + (parseInt(fish.id.slice(-1)) || 0) * 1.5);
-              nextY = baitPos.y + Math.sin(angle) * (2 + (parseInt(fish.id.slice(-1)) || 0) * 0.8);
+              nextX = targetX;
+              nextY = targetY;
             }
 
             if (!nextChat && Math.random() < 0.3) {
@@ -343,6 +348,7 @@ export const FishingPondScene: React.FC<FishingPondSceneProps> = ({
 
     // STEP 1: CASTING (0 - 900ms)
     setFishingState('casting');
+    if (!soundMuted) gameMusic.play();
     if (!soundMuted) soundFx.playCast();
 
     // STEP 2: BAIT LANDING & WATER SPLASH (900ms)
@@ -372,19 +378,19 @@ export const FishingPondScene: React.FC<FishingPondSceneProps> = ({
       ]);
     }, 900);
 
-    // STEP 3: FISH RACING / SWARMING (1200ms - 4000ms)
+    // STEP 3: FISH RACING / SWARMING WITH APPROACH-RETREAT SUSPENSE
     setTimeout(() => {
       setFishingState('racing');
       if (!soundMuted) soundFx.playBubbles();
-    }, 1200);
+    }, 1500);
 
-    // STEP 4: LUCKY FISH BITE (3800ms)
+    // STEP 4: LUCKY FISH BITE
     setTimeout(() => {
       setFishingState('biting');
       if (!soundMuted) soundFx.playFishBite();
-    }, 3800);
+    }, 7400);
 
-    // STEP 5: REELING IN (4800ms - 6000ms)
+    // STEP 5: REELING IN
     setTimeout(() => {
       setFishingState('reeling');
       if (!soundMuted) soundFx.playReelIn();
@@ -398,6 +404,7 @@ export const FishingPondScene: React.FC<FishingPondSceneProps> = ({
 
           // STEP 6: CAUGHT & CELEBRATION!
           setFishingState('caught');
+          gameMusic.stop();
           setShowCelebrationModal(true);
           if (!soundMuted) soundFx.playWin();
 
@@ -415,7 +422,7 @@ export const FishingPondScene: React.FC<FishingPondSceneProps> = ({
         }
         setReelProgress(progress);
       }, 50);
-    }, 4800);
+    }, 8500);
   };
 
   // POINTER / TOUCH HANDLER ON POND WATER SURFACE
@@ -575,9 +582,15 @@ export const FishingPondScene: React.FC<FishingPondSceneProps> = ({
           </button>
 
           {/* Sound Toggle */}
+          <label className="px-3 py-1.5 rounded-2xl bg-white/85 text-slate-700 border-2 border-white shadow-xs cursor-pointer text-xs font-black max-w-[180px] truncate" title={gameMusic.trackName || 'Chọn nhạc cho Ao cá'}>
+            🎵 {gameMusic.trackName || 'Chọn nhạc'}
+            <input type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg" className="hidden" onChange={event => { void gameMusic.choose(event.target.files?.[0]); event.target.value = ''; }} />
+          </label>
+          {gameMusic.trackName && <button type="button" onClick={() => void gameMusic.clear()} className="px-2 py-1.5 rounded-xl bg-rose-100 text-rose-700 text-xs font-black" title="Bỏ nhạc đã chọn">✕ nhạc</button>}
           <button
             type="button"
             onClick={() => {
+              if (!soundMuted) gameMusic.stop();
               setSoundMuted(!soundMuted);
               soundFx.playClick();
             }}
@@ -1085,7 +1098,7 @@ export const FishingPondScene: React.FC<FishingPondSceneProps> = ({
                     {item.student.fullName}
                   </div>
                   <div className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
-                    <span>{item.student.className || 'Lớp 8A1'}</span>
+                    <span>{item.student.className || 'Chưa gán lớp'}</span>
                     <span>• {item.caughtAt}</span>
                   </div>
                   {item.pointsAwarded && (
@@ -1143,7 +1156,7 @@ export const FishingPondScene: React.FC<FishingPondSceneProps> = ({
                 {hookedStudent.fullName}
               </h2>
               <div className="text-sm font-black text-sky-700 mt-1">
-                {hookedStudent.className || 'Lớp 8A1'} {hookedStudent.team ? `• ${hookedStudent.team}` : ''}
+                {hookedStudent.className || 'Chưa gán lớp'} {hookedStudent.team ? `• ${hookedStudent.team}` : ''}
               </div>
             </div>
 

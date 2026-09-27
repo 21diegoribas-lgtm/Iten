@@ -38,6 +38,15 @@ export async function saveRacingGameConfig(config: RacingGameConfig): Promise<vo
   if (!Number.isInteger(config.trackCount) || config.trackCount < 2 || config.trackCount > 6) throw new Error('Số đội phải từ 2 đến 6.');
   if (config.teams.length < config.trackCount || config.teams.slice(0, config.trackCount).some(team => !team.name.trim())) throw new Error('Cần nhập đủ tên đội đua.');
   if (!config.vehicles.length || config.vehicles.some(vehicle => !vehicle.id || !vehicle.name.trim() || !Number.isFinite(vehicle.distance) || vehicle.distance <= 0)) throw new Error('Danh sách phương tiện không hợp lệ.');
+  if (new Set(config.questions.map(question => question.id)).size !== config.questions.length) throw new Error('Danh sách câu hỏi có mã bị trùng.');
+  if (config.questions.some(question => {
+    if (!question.id || !question.question.trim() || !question.correctAnswer.trim() || !['mcq', 'fill', 'bool'].includes(question.type)) return true;
+    if (question.type === 'mcq') {
+      const options = (question.options || []).map(option => option.trim()).filter(Boolean);
+      return options.length < 2 || !options.includes(question.correctAnswer.trim());
+    }
+    return question.type === 'bool' && !['Đúng', 'Sai'].includes(question.correctAnswer);
+  })) throw new Error('Danh sách câu hỏi hoặc đáp án chưa hợp lệ.');
   if (config.isActive && !config.questions.length) throw new Error('Hãy thêm câu hỏi trước khi kích hoạt đường đua.');
   await setDoc(doc(db, RACING_GAMES_COLLECTION, config.classId), {
     ...JSON.parse(JSON.stringify(config)), id: config.id || `racing_${config.classId}`, classId: config.classId,

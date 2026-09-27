@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { PresentationItem, PresentationFormat, User } from '../../types';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { PresentationItem, User } from '../../types';
 import { soundFx } from '../../utils/sound';
 import {
   savePresentationToDB,
@@ -8,8 +8,7 @@ import {
   deletePresentationFromDB,
   updateLastViewedSlideDB
 } from '../../utils/slideStorage';
-import { parsePdfFile, parsePptxFile, formatFileSize } from '../../utils/presentationParser';
-import { getInitialDemoPresentations } from '../../data/samplePresentations';
+import { parsePptxFile, formatFileSize } from '../../utils/presentationParser';
 import { PresentationModeModal } from './PresentationModeModal';
 import {
   Presentation as PresentationIcon,
@@ -38,7 +37,6 @@ interface PresentationRepositoryProps {
 export const PresentationRepository: React.FC<PresentationRepositoryProps> = ({ currentUser }) => {
   const [presentations, setPresentations] = useState<PresentationItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [formatFilter, setFormatFilter] = useState<'all' | 'pptx' | 'pdf'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [activePresentation, setActivePresentation] = useState<PresentationItem | null>(null);
   const [detailModalPresentation, setDetailModalPresentation] = useState<PresentationItem | null>(null);
@@ -62,35 +60,42 @@ export const PresentationRepository: React.FC<PresentationRepositoryProps> = ({ 
   const loadPresentations = async () => {
     try {
       const dbItems = await getAllPresentationsFromDB();
-      if (dbItems.length === 0) {
-        // Initialize with high quality demo presentation decks
-        const demoItems = getInitialDemoPresentations();
-        for (const item of demoItems) {
-          await savePresentationToDB(item);
-        }
-        setPresentations(demoItems);
-      } else {
-        setPresentations(dbItems);
-      }
+      const demoIds = new Set(['demo_presentation_1', 'demo_presentation_2', 'demo_presentation_3']);
+      const demoItems = dbItems.filter(item => demoIds.has(item.id));
+      await Promise.all(demoItems.map(item => deletePresentationFromDB(item.id)));
+      setPresentations(dbItems.filter(item => item.format === 'pptx' && !demoIds.has(item.id)));
     } catch (err) {
       console.error('Error loading presentations:', err);
-      setPresentations(getInitialDemoPresentations());
+      setPresentations([]);
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext !== 'pptx' && ext !== 'pdf' && ext !== 'ppt') {
-      alert('Chỉ hỗ trợ file trình chiếu định dạng .PPTX hoặc .PDF');
+    if (ext !== 'pptx') {
+      alert('Chỉ hỗ trợ file PowerPoint định dạng .PPTX');
+      e.target.value = '';
       return;
     }
 
-    setUploadFile(file);
-    setUploadTitle(file.name.replace(/\.[^/.]+$/, ''));
-    setIsUploadModalOpen(true);
+    try {
+      const fileBytes = await file.arrayBuffer();
+      const stableFile = new File([fileBytes], file.name, {
+        type: file.type || 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        lastModified: file.lastModified,
+      });
+      setUploadFile(stableFile);
+      setUploadTitle(file.name.replace(/\.[^/.]+$/, ''));
+      setIsUploadModalOpen(true);
+    } catch (error) {
+      console.error('PowerPoint file read failed:', error);
+      alert('Không thể đọc file PowerPoint. Hãy đóng file trong PowerPoint rồi chọn lại, hoặc sao chép file về máy trước khi tải lên.');
+    } finally {
+      e.target.value = '';
+    }
   };
 
   const handleStartUpload = async (e: React.FormEvent) => {
@@ -101,20 +106,12 @@ export const PresentationRepository: React.FC<PresentationRepositoryProps> = ({ 
     setUploadProgress(10);
     setUploadStatusText('Đang tải file lên kho lưu trữ...');
 
-    const ext = uploadFile.name.split('.').pop()?.toLowerCase();
-    const format: PresentationFormat = ext === 'pdf' ? 'pdf' : 'pptx';
-
     try {
       soundFx.playClick();
       setUploadProgress(30);
       setUploadStatusText('Đang trích xuất slide và khởi tạo bản preview...');
 
-      let parseRes;
-      if (format === 'pdf') {
-        parseRes = await parsePdfFile(uploadFile, (pct) => setUploadProgress(30 + Math.floor(pct * 0.6)));
-      } else {
-        parseRes = await parsePptxFile(uploadFile, (pct) => setUploadProgress(30 + Math.floor(pct * 0.6)));
-      }
+      const parseRes = await parsePptxFile(uploadFile, (pct) => setUploadProgress(30 + Math.floor(pct * 0.6)));
 
       setUploadProgress(95);
       setUploadStatusText('Đang hoàn tất lưu giữ file gốc...');
@@ -127,7 +124,7 @@ export const PresentationRepository: React.FC<PresentationRepositoryProps> = ({ 
         teacherId: currentUser.id,
         uploadTime: new Date().toISOString().replace('T', ' ').substring(0, 16),
         updatedTime: new Date().toISOString().replace('T', ' ').substring(0, 16),
-        format: format,
+        format: 'pptx',
         fileSize: formatFileSize(uploadFile.size),
         fileSizeBytes: uploadFile.size,
         slideCount: parseRes.slideCount,
@@ -137,7 +134,7 @@ export const PresentationRepository: React.FC<PresentationRepositoryProps> = ({ 
         lastViewedSlide: 1,
         category: uploadCategory,
         subject: uploadSubject,
-        description: `File trình chiếu ${format.toUpperCase()} gốc với ${parseRes.slideCount} slide.`
+        description: `File PowerPoint gốc với ${parseRes.slideCount} slide.`
       };
 
       // Save to IndexedDB along with original File Blob
@@ -158,7 +155,10 @@ export const PresentationRepository: React.FC<PresentationRepositoryProps> = ({ 
     } catch (err) {
       console.error('Upload processing failed:', err);
       soundFx.playError();
-      alert('Không thể xử lý file trình chiếu này. Vui lòng kiểm tra lại định dạng file.');
+      const message = err instanceof Error && err.name === 'NotReadableError'
+        ? 'Không thể đọc file PowerPoint. Hãy đóng file trong PowerPoint rồi chọn lại, hoặc sao chép file về máy trước khi tải lên.'
+        : 'Không thể xử lý file PowerPoint này. File có thể bị hỏng, đặt mật khẩu hoặc không đúng định dạng .PPTX.';
+      alert(message);
       setIsProcessingUpload(false);
       setUploadProgress(0);
     }
@@ -206,6 +206,11 @@ export const PresentationRepository: React.FC<PresentationRepositoryProps> = ({ 
     }
   };
 
+  const loadActivePresentationFile = useCallback(
+    () => activePresentation ? getOriginalFileBlobFromDB(activePresentation.id) : Promise.resolve(null),
+    [activePresentation?.id],
+  );
+
   // Filtered list
   const filteredPresentations = presentations.filter(p => {
     const matchesSearch =
@@ -214,10 +219,9 @@ export const PresentationRepository: React.FC<PresentationRepositoryProps> = ({ 
       p.teacherOwner.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.category && p.category.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    const matchesFormat = formatFilter === 'all' || p.format === formatFilter;
     const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
 
-    return matchesSearch && matchesFormat && matchesCategory;
+    return matchesSearch && matchesCategory;
   });
 
   const categoriesList = Array.from(new Set(presentations.map(p => p.category).filter(Boolean)));
@@ -237,10 +241,10 @@ export const PresentationRepository: React.FC<PresentationRepositoryProps> = ({ 
             </span>
           </div>
           <h2 className="text-2xl sm:text-4xl font-black text-white drop-shadow-sm">
-            Kho Bài Trình Chiếu & Trình Chiếu Tích Hợp
+            Kho Bài Giảng PowerPoint
           </h2>
           <p className="text-sm font-medium text-sky-100 max-w-3xl leading-relaxed">
-            Tải file trình chiếu (<span className="font-bold underline">.PPTX</span>, <span className="font-bold underline">.PDF</span>), lưu giữ file gốc an toàn và trình chiếu trực tiếp trong ứng dụng ITEN mà KHÔNG cần mở PowerPoint hay phần mềm bên ngoài!
+            Thêm file PowerPoint <span className="font-bold underline">.PPTX</span> và trình chiếu trực tiếp trong ứng dụng ITEN.
           </p>
         </div>
       </div>
@@ -260,37 +264,6 @@ export const PresentationRepository: React.FC<PresentationRepositoryProps> = ({ 
             />
           </div>
 
-          {/* Format Filter */}
-          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl border border-slate-200">
-            <button
-              type="button"
-              onClick={() => { soundFx.playClick(); setFormatFilter('all'); }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                formatFilter === 'all' ? 'bg-white text-sky-800 shadow-2xs border border-sky-200' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Tất cả ({presentations.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => { soundFx.playClick(); setFormatFilter('pptx'); }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
-                formatFilter === 'pptx' ? 'bg-amber-500 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              📊 PPTX ({presentations.filter(p => p.format === 'pptx').length})
-            </button>
-            <button
-              type="button"
-              onClick={() => { soundFx.playClick(); setFormatFilter('pdf'); }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1 ${
-                formatFilter === 'pdf' ? 'bg-rose-500 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              📕 PDF ({presentations.filter(p => p.format === 'pdf').length})
-            </button>
-          </div>
-
           {/* Upload Button */}
           <button
             type="button"
@@ -308,7 +281,7 @@ export const PresentationRepository: React.FC<PresentationRepositoryProps> = ({ 
           <input
             ref={fileInputRef}
             type="file"
-            accept=".pptx,.pdf,.ppt"
+            accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
             onChange={handleFileSelect}
             className="hidden"
           />
@@ -350,7 +323,7 @@ export const PresentationRepository: React.FC<PresentationRepositoryProps> = ({ 
             <FolderOpen className="w-16 h-16 text-sky-300 mx-auto" />
             <h3 className="text-lg font-black text-slate-700">Chưa có bài trình chiếu nào</h3>
             <p className="text-xs text-slate-500 max-w-md mx-auto">
-              Nhấn nút <span className="font-bold text-amber-600">+ TẢI TRÌNH CHIẾU</span> để tải file PPTX hoặc PDF lên kho ứng dụng ITEN.
+              Nhấn nút <span className="font-bold text-amber-600">+ TẢI TRÌNH CHIẾU</span> để thêm file PowerPoint (.PPTX).
             </p>
           </div>
         ) : (
@@ -669,6 +642,7 @@ export const PresentationRepository: React.FC<PresentationRepositoryProps> = ({ 
           onClose={() => setActivePresentation(null)}
           onUpdateLastViewed={handleUpdateLastViewed}
           onDownloadOriginal={handleDownloadOriginal}
+          loadOriginalFile={loadActivePresentationFile}
         />
       )}
     </div>

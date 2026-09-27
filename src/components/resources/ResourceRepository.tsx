@@ -14,8 +14,6 @@ import {
   updateLastViewedSlideDB
 } from '../../utils/slideStorage';
 import { parsePdfFile, parsePptxFile, formatFileSize } from '../../utils/presentationParser';
-import { getInitialDemoResources } from '../../data/sampleResources';
-import { getInitialDemoPresentations } from '../../data/samplePresentations';
 
 import { ResourceFormModal } from './ResourceFormModal';
 import { InternalBrowserModal } from './InternalBrowserModal';
@@ -95,30 +93,14 @@ export const ResourceRepository: React.FC<ResourceRepositoryProps> = ({ currentU
   const loadData = async () => {
     try {
       const dbResources = await getAllResourcesFromDB();
-      if (dbResources.length === 0) {
-        const demoR = getInitialDemoResources();
-        for (const item of demoR) {
-          await saveResourceToDB(item);
-        }
-        setResources(demoR);
-      } else {
-        setResources(dbResources);
-      }
+      setResources(dbResources);
 
       const dbPresentations = await getAllPresentationsFromDB();
-      if (dbPresentations.length === 0) {
-        const demoP = getInitialDemoPresentations();
-        for (const item of demoP) {
-          await savePresentationToDB(item);
-        }
-        setPresentations(demoP);
-      } else {
-        setPresentations(dbPresentations);
-      }
+      setPresentations(dbPresentations);
     } catch (err) {
       console.error('Error loading unified repository data:', err);
-      setResources(getInitialDemoResources());
-      setPresentations(getInitialDemoPresentations());
+      setResources([]);
+      setPresentations([]);
     }
   };
 

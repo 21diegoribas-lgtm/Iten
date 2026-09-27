@@ -6,8 +6,9 @@ import {
   Complaint,
   PointUsageTransaction
 } from '../../types';
-import { REWARD_CATEGORIES, VIOLATION_CATEGORIES } from '../../mockData';
+import { REWARD_CATEGORIES, VIOLATION_CATEGORIES } from '../../constants/competitionCategories';
 import { soundFx } from '../../utils/sound';
+import { normalizeStudentTeam, STUDENT_TEAMS } from '../../utils/studentTeam';
 
 export const TRAINING_REWARD_PRESETS = [
   { id: 'tr1', name: '10 điểm tốt học tập', points: 10, defaultReason: 'Đạt điểm 10 kiểm tra học tập xuất sắc' },
@@ -371,7 +372,7 @@ export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
       id: 'cp_' + Date.now(),
       studentId: currentUser.id,
       studentName: currentUser.fullName,
-      className: currentUser.className || 'Lớp 8A1',
+      className: currentUser.className || '',
       title: compTitle.trim(),
       content: compContent.trim(),
       target: compTarget,
@@ -414,18 +415,23 @@ export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
   const totalPoints = filteredRecords.reduce((acc, curr) => acc + curr.points, 100);
 
   // List of unique teams
-  const TEAMS_LIST = ['Tổ 1', 'Tổ 2', 'Tổ 3', 'Tổ 4'];
+  const TEAMS_LIST = STUDENT_TEAMS;
+
+  const unassignedStudentCount = useMemo(
+    () => students.filter((student) => !normalizeStudentTeam(student.team)).length,
+    [students]
+  );
 
   // ================= COMPUTED STATISTICS BY TEAM & WEEK =================
   const teamStatsSummary = useMemo(() => {
     return TEAMS_LIST.map((teamName) => {
       // Students in this team
-      const teamStudents = students.filter((s) => (s.team || 'Tổ 1') === teamName);
+      const teamStudents = students.filter((s) => normalizeStudentTeam(s.team) === teamName);
 
       // Records for this team with active filters
       const teamRecords = disciplineRecords.filter((r) => {
         const st = students.find((s) => s.id === r.studentId);
-        if (!st || (st.team || 'Tổ 1') !== teamName) return false;
+        if (!st || normalizeStudentTeam(st.team) !== teamName) return false;
 
         const matchSemester = selectedSemester === 'all' || r.semester === selectedSemester;
         const matchWeek = selectedWeekFilter === 'all' || r.week === selectedWeekFilter;
@@ -484,7 +490,7 @@ export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
           const st = students.find((s) => s.id === r.studentId);
           return (
             st &&
-            (st.team || 'Tổ 1') === tName &&
+            normalizeStudentTeam(st.team) === tName &&
             r.week === wNum &&
             (selectedSemester === 'all' || r.semester === selectedSemester)
           );
@@ -584,7 +590,7 @@ export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
 
         return {
           student: st,
-          team: st.team || 'Tổ 1',
+          team: normalizeStudentTeam(st.team) || 'Chưa phân tổ',
           pos,
           neg,
           net,
@@ -620,7 +626,7 @@ export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
   // Student level breakdown by Team
   const studentDetailedByTeam = useMemo(() => {
     return TEAMS_LIST.map((tName) => {
-      const teamStudents = students.filter((s) => (s.team || 'Tổ 1') === tName);
+      const teamStudents = students.filter((s) => normalizeStudentTeam(s.team) === tName);
 
       const studentRows = teamStudents
         .map((st) => {
@@ -769,7 +775,7 @@ export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
 
         <div className="text-xs font-bold text-slate-500 flex items-center gap-1.5 px-3 py-1 bg-emerald-50 rounded-xl border border-emerald-200">
           <Award className="w-3.5 h-3.5 text-emerald-600" />
-          <span>Lớp 8A1 • Trường THCS Chu Văn An</span>
+          <span>{currentUser.className || 'Chưa gán lớp'} • {currentUser.school || 'Chưa có thông tin trường'}</span>
         </div>
       </div>
 
@@ -869,6 +875,13 @@ export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
                 {selectedWeekFilter === 'all' ? 'Tất cả các tuần' : `Tuần ${selectedWeekFilter}`}
               </span>
             </div>
+
+            {unassignedStudentCount > 0 && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <span className="font-black">{unassignedStudentCount} học sinh chưa có tổ hợp lệ.</span>{' '}
+                Hãy cập nhật cột Tổ thành Tổ 1, Tổ 2, Tổ 3 hoặc Tổ 4 để các em được tính vào bảng.
+              </div>
+            )}
 
             <div className="overflow-x-auto rounded-2xl border border-slate-200">
               <table className="w-full text-left text-xs border-collapse">

@@ -7,7 +7,7 @@ import {
   TeacherWorkSchedule
 } from '../../types';
 import { soundFx } from '../../utils/sound';
-import { createDefaultTeacherWeeklyTimetable } from '../../mockData';
+import { createEmptyTeacherWeeklyTimetable } from '../../utils/teacherSchedule';
 import {
   Calendar,
   Clock,
@@ -100,7 +100,7 @@ export const TeacherWeeklyScheduleView: React.FC<TeacherWeeklyScheduleViewProps>
       return teacherWeeklyTimetables;
     }
     return [
-      createDefaultTeacherWeeklyTimetable(currentUser.id, currentUser.fullName, 4, 'Học kỳ 1')
+      createEmptyTeacherWeeklyTimetable(currentUser.id, currentUser.fullName, 4, 'Học kỳ 1')
     ];
   });
 
@@ -138,7 +138,7 @@ export const TeacherWeeklyScheduleView: React.FC<TeacherWeeklyScheduleViewProps>
     if (found) return found;
 
     // Generate fallback template
-    return createDefaultTeacherWeeklyTimetable(
+    return createEmptyTeacherWeeklyTimetable(
       selectedTeacherId,
       currentSelectedTeacher.fullName,
       selectedWeek,
@@ -246,7 +246,7 @@ export const TeacherWeeklyScheduleView: React.FC<TeacherWeeklyScheduleViewProps>
   // Reset to default standard template
   const handleResetToTemplate = () => {
     if (confirm('Bạn có muốn nạp lại bảng mẫu chuẩn công tác tuần cho tuần này không?')) {
-      const defaultTable = createDefaultTeacherWeeklyTimetable(
+      const defaultTable = createEmptyTeacherWeeklyTimetable(
         selectedTeacherId,
         currentSelectedTeacher.fullName,
         selectedWeek,

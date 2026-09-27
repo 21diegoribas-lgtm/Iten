@@ -7,11 +7,14 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
+  query,
+  where,
   type DocumentSnapshot,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { StudentProfile } from '../types';
 import { parseFirestoreDateField } from './userService';
+import { normalizeStudentTeam } from '../utils/studentTeam';
 
 export const STUDENTS_COLLECTION = 'students';
 
@@ -48,7 +51,7 @@ export function docToStudentProfile(docSnap: DocumentSnapshot): StudentProfile |
     address: typeof data.address === 'string' ? data.address : undefined,
     school: typeof data.school === 'string' ? data.school : undefined,
     position: typeof data.position === 'string' ? data.position : undefined,
-    team: typeof data.team === 'string' ? data.team : undefined,
+    team: normalizeStudentTeam(data.team) || undefined,
     isUnionMember: typeof data.isUnionMember === 'boolean' ? data.isUnionMember : undefined,
     notes: typeof data.notes === 'string' ? data.notes : undefined,
     status: typeof data.status === 'string' ? data.status : undefined,
@@ -103,6 +106,12 @@ export async function getStudents(): Promise<StudentProfile[]> {
   });
 
   return students;
+}
+
+export async function getStudentsByClass(classId: string): Promise<StudentProfile[]> {
+  if (!classId) return [];
+  const snapshot = await getDocs(query(collection(db, STUDENTS_COLLECTION), where('classId', '==', classId)));
+  return snapshot.docs.map(docToStudentProfile).filter((student): student is StudentProfile => student !== null);
 }
 
 /**

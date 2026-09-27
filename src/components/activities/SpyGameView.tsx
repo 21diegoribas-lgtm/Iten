@@ -468,7 +468,7 @@ export const SpyGameView: React.FC<SpyGameViewProps> = ({
                 >
                   {students.map(st => (
                     <option key={st.id} value={st.id}>
-                      {st.fullName} ({st.team || 'Lớp 8A1'}) - Tài khoản: {st.username}
+                      {st.fullName} ({st.team || 'Chưa xếp tổ'}) - Tài khoản: {st.username}
                     </option>
                   ))}
                 </select>
@@ -583,7 +583,7 @@ export const SpyGameView: React.FC<SpyGameViewProps> = ({
                 <div>
                   <span className="text-[10px] font-bold text-purple-600 uppercase block">Gián điệp tuần này:</span>
                   <span className="font-black text-slate-900 text-sm">
-                    {spyStudentObj?.fullName} ({spyStudentObj?.team || 'Lớp 8A1'})
+                    {spyStudentObj?.fullName} ({spyStudentObj?.team || 'Chưa xếp tổ'})
                   </span>
                 </div>
                 <div className="text-right">
@@ -762,7 +762,7 @@ export const SpyGameView: React.FC<SpyGameViewProps> = ({
                 >
                   {students.map(st => (
                     <option key={st.id} value={st.id}>
-                      {st.fullName} ({st.team || 'Lớp 8A1'})
+                      {st.fullName} ({st.team || 'Chưa xếp tổ'})
                     </option>
                   ))}
                 </select>

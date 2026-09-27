@@ -719,7 +719,7 @@ export const KeyboardHeroView: React.FC<KeyboardHeroViewProps> = ({
             {/* Student Info & Submission Preview */}
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
               <div className="flex items-center justify-between font-bold">
-                <span className="text-slate-900">{selectedSubForGrading.studentName} ({selectedSubForGrading.team || 'Lớp 8A1'})</span>
+                <span className="text-slate-900">{selectedSubForGrading.studentName} ({selectedSubForGrading.team || 'Chưa xếp tổ'})</span>
                 <span className="text-indigo-700">Nộp: {selectedSubForGrading.submittedAt}</span>
               </div>
               <div className="p-3 bg-white rounded-xl border border-slate-100 text-slate-800 italic max-h-40 overflow-y-auto font-sans leading-relaxed">

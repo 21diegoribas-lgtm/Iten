@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { User } from '../../../types';
 import { soundFx } from '../../../utils/sound';
+import { useGameMusic } from '../../../hooks/useGameMusic';
 import { Game3DButton } from '../Game3DButton';
 import { LotteryCageSvg } from './LotteryCageSvg';
 import { LotteryBallSvg, LOTTERY_BALL_PALETTES } from './LotteryBallSvg';
@@ -97,6 +98,7 @@ export const LotteryScene: React.FC<LotterySceneProps> = ({
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [soundMuted, setSoundMuted] = useState(false);
   const [language, setLanguage] = useState<'vi' | 'en'>(initialLang);
+  const gameMusic = useGameMusic('lottery');
 
   // Animation refs
   const requestRef = useRef<number | null>(null);
@@ -192,27 +194,28 @@ export const LotteryScene: React.FC<LotterySceneProps> = ({
       if (isSpinning) {
         const elapsed = (time - spinStartTimeRef.current) / 1000;
 
-        // 1. Acceleration (0 -> 0.8s)
-        if (elapsed < 0.8) {
+        // 1. Acceleration (0 -> 1.2s)
+        if (elapsed < 1.2) {
           setSpinPhase('accel');
-          currentSpeedRef.current = (elapsed / 0.8) * 850; // deg/sec
+          currentSpeedRef.current = (elapsed / 1.2) * 850; // deg/sec
         }
-        // 2. High Speed Fast Spin (0.8s -> 2.6s)
-        else if (elapsed < 2.6) {
+        // 2. High Speed Fast Spin (1.2s -> 5.2s)
+        else if (elapsed < 5.2) {
           setSpinPhase('fast');
           currentSpeedRef.current = 850 + Math.sin(elapsed * 12) * 60;
         }
-        // 3. Deceleration (2.6s -> 3.8s)
-        else if (elapsed < 3.8) {
+        // 3. Long, pulsing deceleration for suspense (5.2s -> 7.5s)
+        else if (elapsed < 7.5) {
           setSpinPhase('decel');
-          const decelRatio = (3.8 - elapsed) / 1.2;
-          currentSpeedRef.current = decelRatio * 850;
+          const decelRatio = (7.5 - elapsed) / 2.3;
+          currentSpeedRef.current = Math.max(35, decelRatio * 850 + Math.sin(elapsed * 9) * 45 * decelRatio);
         }
-        // 4. Stop & Eject Ball (3.8s -> 4.3s)
+        // 4. Stop & Eject Ball
         else {
           currentSpeedRef.current = 0;
           if (spinPhase !== 'eject' && spinPhase !== 'winner') {
             setSpinPhase('eject');
+            gameMusic.stop();
             setHasBallInChute(true);
             if (!soundMuted) soundFx.playBonus();
 
@@ -228,7 +231,7 @@ export const LotteryScene: React.FC<LotterySceneProps> = ({
                 setSpinPhase('winner');
                 setIsSpinning(false);
               }
-            }, 600);
+            }, 900);
           }
         }
 
@@ -398,6 +401,7 @@ export const LotteryScene: React.FC<LotterySceneProps> = ({
     if (isSpinning || eligibleBalls.length === 0) return;
 
     if (!soundMuted) soundFx.playSpin();
+    if (!soundMuted) gameMusic.play();
     setIsSpinning(true);
     setSpinPhase('accel');
     setHasBallInChute(false);
@@ -643,9 +647,14 @@ export const LotteryScene: React.FC<LotterySceneProps> = ({
           </button>
 
           {/* Sound Toggle */}
+          <label className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-900 border border-amber-200 shadow-2xs cursor-pointer text-xs font-black max-w-[180px] truncate" title={gameMusic.trackName || 'Chọn nhạc xổ số'}>
+            🎵 {gameMusic.trackName || 'Chọn nhạc xổ số'}
+            <input type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg" className="hidden" onChange={event => { void gameMusic.choose(event.target.files?.[0]); event.target.value = ''; }} />
+          </label>
+          {gameMusic.trackName && <button type="button" onClick={() => void gameMusic.clear()} className="px-2 py-1.5 rounded-xl bg-rose-100 text-rose-700 text-xs font-black" title="Bỏ nhạc đã chọn">✕ nhạc</button>}
           <button
             type="button"
-            onClick={() => setSoundMuted(!soundMuted)}
+            onClick={() => { if (!soundMuted) gameMusic.stop(); setSoundMuted(!soundMuted); }}
             className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-200 shadow-2xs cursor-pointer"
             title={soundMuted ? 'Bật âm thanh' : 'Tắt âm thanh'}
           >

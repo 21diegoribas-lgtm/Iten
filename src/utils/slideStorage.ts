@@ -53,6 +53,7 @@ export async function savePresentationToDB(item: PresentationItem, blob?: Blob |
     });
   } catch (err) {
     console.error('Failed to save presentation to IndexedDB:', err);
+    throw err;
   }
 }
 
@@ -144,6 +145,7 @@ export async function updateLastViewedSlideDB(id: string, slideIndex: number): P
     };
   } catch (err) {
     console.error('Failed to update lastViewedSlide:', err);
+    throw err;
   }
 }
 
@@ -163,5 +165,6 @@ export async function deletePresentationFromDB(id: string): Promise<void> {
     });
   } catch (err) {
     console.error('Failed to delete presentation:', err);
+    throw err;
   }
 }

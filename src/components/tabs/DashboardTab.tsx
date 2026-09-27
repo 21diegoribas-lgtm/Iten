@@ -19,6 +19,7 @@ import {
 } from '../../types';
 import { soundFx } from '../../utils/sound';
 import { getAvatarUrl } from '../../utils/avatarHelper';
+import { normalizeStudentTeam } from '../../utils/studentTeam';
 import { TeacherWeeklyScheduleView } from '../schedule/TeacherWeeklyScheduleView';
 import { ClassFundManager } from '../fund/ClassFundManager';
 import { ClassLogbookManager } from '../logbook/ClassLogbookManager';
@@ -44,6 +45,28 @@ import {
   Receipt
 } from 'lucide-react';
 
+const HIGH_SCHOOL_SUBJECTS = [
+  'Ngữ văn',
+  'Toán',
+  'Tiếng Anh',
+  'Vật lí',
+  'Hóa học',
+  'Sinh học',
+  'Lịch sử',
+  'Địa lí',
+  'Giáo dục kinh tế và pháp luật',
+  'Tin học',
+  'Công nghệ',
+  'Giáo dục thể chất',
+  'Giáo dục quốc phòng và an ninh',
+  'Âm nhạc',
+  'Mỹ thuật',
+  'Hoạt động trải nghiệm, hướng nghiệp',
+  'Nội dung giáo dục địa phương',
+] as const;
+
+const STUDENT_GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1OauuPrFn8_BEZ8TW36DXP2ax7wM5kncdhAV70LG5DZQ/edit?usp=sharing';
+
 interface DashboardTabProps {
   currentUser: User;
   notifications: NotificationItem[];
@@ -59,6 +82,8 @@ interface DashboardTabProps {
   logbooks?: ClassLogbookWeek[];
   onUpdateLogbooks?: (logbooks: ClassLogbookWeek[]) => void;
   cleaning: CleaningSchedule;
+  cleaningLoading?: boolean;
+  cleaningLoadError?: string;
   students: User[];
   teachers?: User[];
   classesList: any[];
@@ -68,18 +93,18 @@ interface DashboardTabProps {
   onAddTeacherSchedule?: (s: TeacherWorkSchedule) => void;
   onUpdateTeacherSchedule?: (s: TeacherWorkSchedule) => void;
   onDeleteTeacherSchedule?: (id: string) => void;
-  onUpdateCleaning: (cl: CleaningSchedule) => void;
+  onUpdateCleaning: (cl: CleaningSchedule) => Promise<void>;
   onAddAccountRequest: (req: AccountRequest) => void;
   accountRequests: AccountRequest[];
   onResolveRequest: (id: string, status: 'Đã duyệt' | 'Từ chối') => void;
   onAddStudent: (st: User) => Promise<void>;
   onUpdateStudent?: (st: User) => void;
-  onDeleteStudent?: (id: string) => void;
+  onDeleteStudent?: (id: string) => Promise<void>;
   onAddStudentsBulk?: (students: User[]) => Promise<User[]>;
   onAddClass: (cl: any) => void;
   onUpdateClass?: (cl: any) => void;
   onDeleteClass?: (id: string) => void;
-  onAddTeacher?: (t: User) => void;
+  onAddTeacher?: (t: User) => Promise<void>;
   onUpdateTeacher?: (t: User) => void;
   onDeleteTeacher?: (id: string) => void;
   onAddTeachersBulk?: (teachers: User[]) => void;
@@ -107,6 +132,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   logbooks = [],
   onUpdateLogbooks,
   cleaning,
+  cleaningLoading = false,
+  cleaningLoadError = '',
   students,
   teachers = [],
   onAddNotification,
@@ -154,23 +181,62 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     name: '',
     academicYear: '2025 - 2026',
     school: 'THCS Chu Văn An',
-    homeroomTeacher: currentUser.fullName || 'Cô Lê Thị Mai',
+    homeroomTeacher: currentUser.fullName || '',
     teacherRole: 'Giáo viên chủ nhiệm' as 'Giáo viên chủ nhiệm' | 'Giáo viên bộ môn',
-    subject: 'Ngữ Văn',
-    studentCount: 38,
-    maleCount: 20,
-    femaleCount: 18,
-    unionCount: 25,
+    subject: 'Ngữ văn',
+    studentCount: 0,
+    maleCount: 0,
+    femaleCount: 0,
+    unionCount: 0,
     notes: 'Lớp điểm thi đua'
   });
 
   // Modals state for Add/Edit/Import Student
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState<User | null>(null);
-  const [studentImportMode, setStudentImportMode] = useState<'manual' | 'bulk' | 'sheet'>('manual');
-  const [studentBulkText, setStudentBulkText] = useState('');
-  const [studentSheetUrl, setStudentSheetUrl] = useState('');
+  const [studentImportMode, setStudentImportMode] = useState<'manual' | 'sheet'>('manual');
+  const studentSheetUrl = STUDENT_GOOGLE_SHEET_URL;
+  const [studentSheetResult, setStudentSheetResult] = useState<{ type: 'info' | 'success' | 'error'; message: string } | null>(null);
   const [customPosition, setCustomPosition] = useState('');
+
+  const downloadStudentImportTemplate = () => {
+    const csv = [
+      ['Họ tên', 'Email', 'Mật khẩu', 'Giới tính', 'Ngày sinh', 'SĐT', 'Tổ', 'Chức vụ', 'Đoàn viên'],
+      ['Nguyễn Văn An', 'an.nguyen@iten.edu.vn', '123456', 'Nam', '2012-05-15', '0912345678', 'Tổ 1', 'lớp trưởng', 'Có'],
+      ['Trần Thị Bình', 'binh.tran@iten.edu.vn', '', 'Nữ', '2012-08-20', '0987654321', 'Tổ 2', '', 'Không'],
+    ].map(row => row.map(value => `"${value.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'mau-nhap-hoc-sinh.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const normalizeStudentPosition = (value?: string) => {
+    const trimmed = (value || '').trim();
+    const normalized = trimmed.toLocaleLowerCase('vi');
+    const knownPositions = ['thành viên', 'lớp trưởng', 'lớp phó học tập', 'lớp phó lao động', 'tổ trưởng', 'thủ quỹ', 'cờ đỏ'];
+    const unaccented = normalized
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/\s+/g, ' ');
+    if (unaccented === 'thu quy' || unaccented === 'thuquy') return 'thủ quỹ';
+    return knownPositions.includes(normalized) ? normalized : (trimmed || 'thành viên');
+  };
+
+  const normalizeUnionMember = (value?: string) => {
+    const normalized = (value || '')
+      .trim()
+      .toLocaleLowerCase('vi')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd');
+    return ['co', 'x', '1', 'true', 'yes', 'doan vien'].includes(normalized);
+  };
 
   const [addStudentForm, setAddStudentForm] = useState({
     fullName: '',
@@ -182,7 +248,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     email: '',
     address: 'Hà Nội',
     password: '123456',
-    position: 'thành viên',
+    position: '',
     team: 'Tổ 1',
     isUnionMember: true,
     notes: ''
@@ -191,9 +257,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   // Modals state for Admin Teacher Management
   const [showTeacherModal, setShowTeacherModal] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<User | null>(null);
-  const [teacherImportMode, setTeacherImportMode] = useState<'manual' | 'bulk' | 'sheet'>('manual');
+  const [teacherImportMode, setTeacherImportMode] = useState<'manual' | 'bulk'>('manual');
   const [teacherBulkText, setTeacherBulkText] = useState('');
-  const [teacherSheetUrl, setTeacherSheetUrl] = useState('');
   const [teacherForm, setTeacherForm] = useState({
     fullName: '',
     school: 'THCS Chu Văn An',
@@ -204,9 +269,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     address: 'Hà Nội',
     password: '123456',
     teacherRole: 'giáo viên chủ nhiệm' as 'giáo viên bộ môn' | 'giáo viên chủ nhiệm' | 'vừa chủ nhiệm vừa bộ môn',
-    subject: 'Toán học',
+    subject: 'Toán',
     notes: ''
   });
+  const [isSavingTeacher, setIsSavingTeacher] = useState(false);
+  const [teacherFormError, setTeacherFormError] = useState('');
 
   // Teacher Self Profile & Password Update Modal
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -215,7 +282,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     email: currentUser.email || '',
     phone: currentUser.phone || '',
     address: currentUser.address || '',
-    subject: currentUser.subject || 'Ngữ Văn',
+    subject: currentUser.subject || 'Ngữ văn',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -274,16 +341,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const augmentedClassesList = useMemo(() => {
     return classesList.map(cls => {
       const matchingStudents = students.filter(st => st.className === cls.name || st.classId === cls.id);
-      if (matchingStudents.length > 0) {
-        return {
-          ...cls,
-          studentCount: matchingStudents.length,
-          maleCount: matchingStudents.filter(s => s.gender === 'Nam').length,
-          femaleCount: matchingStudents.filter(s => s.gender === 'Nữ').length,
-          unionCount: matchingStudents.filter(s => s.isUnionMember).length
-        };
-      }
-      return cls;
+      return {
+        ...cls,
+        studentCount: matchingStudents.length,
+        maleCount: matchingStudents.filter(s => s.gender === 'Nam').length,
+        femaleCount: matchingStudents.filter(s => s.gender === 'Nữ').length,
+        unionCount: matchingStudents.filter(s => s.isUnionMember).length
+      };
     });
   }, [classesList, students]);
 
@@ -297,7 +361,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   // Filtered students by Academic Year, Class, Team, and Search Query
   const filteredStudentsList = useMemo(() => {
     return students.filter(st => {
-      const stClass = st.className || 'Lớp 8A1';
+      const stClass = st.className || 'Chưa gán lớp';
       const stAcademicYear = st.academicYear || classAcademicYearMap[stClass] || classAcademicYearMap[st.classId || ''] || '2025 - 2026';
       
       const matchesYear = selectedAcademicYearFilter === 'all' || stAcademicYear === selectedAcademicYearFilter;
@@ -311,10 +375,33 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     });
   }, [students, selectedAcademicYearFilter, selectedClassFilter, studentSearchQuery, selectedTeamFilter, classAcademicYearMap]);
 
+  const exportFilteredStudents = () => {
+    if (!filteredStudentsList.length) {
+      showErrorToast('Không có học sinh nào trong bộ lọc hiện tại.');
+      return;
+    }
+    const rows = [
+      ['Họ tên', 'Email', 'Giới tính', 'Ngày sinh', 'SĐT', 'Lớp', 'Năm học', 'Tổ', 'Chức vụ', 'Đoàn viên'],
+      ...filteredStudentsList.map(student => [
+        student.fullName, student.email || '', student.gender || '', student.dob || '', student.phone || '',
+        student.className || '', student.academicYear || '', student.team || '', student.position || '', student.isUnionMember ? 'Có' : 'Không',
+      ]),
+    ];
+    const csv = rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `danh-sach-hoc-sinh-${selectedClassFilter === 'all' ? 'tat-ca' : selectedClassFilter.replace(/\s+/g, '-').toLowerCase()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   // Statistical metrics for selected academic year and class filter
   const classStatsSummary = useMemo(() => {
     const classStudents = students.filter(st => {
-      const stClass = st.className || 'Lớp 8A1';
+      const stClass = st.className || 'Chưa gán lớp';
       const stAcademicYear = st.academicYear || classAcademicYearMap[stClass] || classAcademicYearMap[st.classId || ''] || '2025 - 2026';
       const matchesYear = selectedAcademicYearFilter === 'all' || stAcademicYear === selectedAcademicYearFilter;
       const matchesClass = selectedClassFilter === 'all' || stClass === selectedClassFilter || st.classId === selectedClassFilter;
@@ -365,6 +452,21 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const isClassOfficer = currentUser.role === 'student' && currentUser.position && currentUser.position !== 'thành viên';
   const canManageTimetable = currentUser.role === 'teacher' || currentUser.role === 'admin' || isClassOfficer;
   const canManageCleaning = currentUser.role === 'teacher' || currentUser.role === 'admin' || isClassOfficer;
+  const cleaningClassStudents = useMemo(
+    () => students.filter(student => student.classId === cleaning.classId),
+    [students, cleaning.classId]
+  );
+  const cleaningTeamOptions = useMemo(() => {
+    const teams: string[] = cleaningClassStudents.flatMap(student => {
+      const team = typeof student.team === 'string' ? student.team.trim() : '';
+      return team ? [team] : [];
+    });
+    return Array.from(new Set(teams)).sort((a, b) => a.localeCompare(b, 'vi', { numeric: true }));
+  }, [cleaningClassStudents]);
+  const todayCleaningDay = ['', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'][new Date().getDay()];
+  const todayCleaningTaskIndex = todayCleaningDay
+    ? cleaning.tasks.findIndex(task => task.day.trim().toLocaleLowerCase('vi') === todayCleaningDay.toLocaleLowerCase('vi'))
+    : -1;
 
   const [isEditingTimetable, setIsEditingTimetable] = useState(false);
   const [editTimetable, setEditTimetable] = useState<TimetableEntry>(timetable);
@@ -579,7 +681,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 email: currentUser.email || '',
                 phone: currentUser.phone || '',
                 address: currentUser.address || '',
-                subject: currentUser.subject || 'Ngữ Văn',
+                subject: currentUser.subject || 'Ngữ văn',
                 currentPassword: '',
                 newPassword: '',
                 confirmPassword: ''
@@ -649,7 +751,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       <input
                         type="text"
                         disabled
-                        value="Giáo viên chủ nhiệm (Cô Lê Thị Mai)"
+                        value={classesList.find(c => c.id === currentUser.classId)?.homeroomTeacher
+                          ? `Giáo viên chủ nhiệm (${classesList.find(c => c.id === currentUser.classId)?.homeroomTeacher})`
+                          : 'Quản trị viên'}
                         className="w-full p-3 bg-slate-100 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-500 cursor-not-allowed"
                       />
                     </div>
@@ -687,7 +791,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-                    <button
+                    {currentUser.role === 'admin' && <button
                       type="button"
                       onClick={() => {
                         soundFx.playClick();
@@ -695,11 +799,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                           name: '',
                           academicYear: selectedAcademicYearFilter !== 'all' ? selectedAcademicYearFilter : '2025 - 2026',
                           school: 'THCS Chu Văn An',
-                          homeroomTeacher: currentUser.fullName || 'Cô Lê Thị Mai',
-                          studentCount: 38,
-                          maleCount: 20,
-                          femaleCount: 18,
-                          unionCount: 25,
+                          homeroomTeacher: currentUser.fullName || '',
+                          studentCount: 0,
+                          maleCount: 0,
+                          femaleCount: 0,
+                          unionCount: 0,
                           notes: 'Lớp mới phụ trách'
                         });
                         setShowAddClassModal(true);
@@ -707,7 +811,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       className="flex-1 sm:flex-none px-3.5 py-2 bg-white text-amber-900 font-bold rounded-xl text-xs hover:bg-amber-50 shadow-md cursor-pointer flex items-center justify-center gap-1.5"
                     >
                       <Plus className="w-4 h-4 shrink-0" /> Tạo lớp mới
-                    </button>
+                    </button>}
                     <button
                       type="button"
                       onClick={() => {
@@ -716,14 +820,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         setStudentImportMode('manual');
                         setAddStudentForm({
                           fullName: '',
-                          className: selectedClassFilter !== 'all' ? selectedClassFilter : (classesList[0]?.name || 'Lớp 8A1'),
+                          className: selectedClassFilter !== 'all' ? selectedClassFilter : (classesList[0]?.name || ''),
                           academicYear: selectedAcademicYearFilter !== 'all' ? selectedAcademicYearFilter : '2025 - 2026',
                           gender: 'Nam',
                           dob: '2012-05-15',
                           phone: '',
                           email: '',
                           address: 'Hà Nội',
-                          position: 'thành viên',
+                          position: '',
                           team: 'Tổ 1',
                           isUnionMember: true
                         });
@@ -1286,7 +1390,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                <span>🧹</span> Lịch vệ sinh tuần {cleaning.weekNumber}
+                <span>🧹</span> Lịch vệ sinh{cleaning.tasks.length > 0 ? ` tuần ${cleaning.weekNumber}` : ''}
               </h3>
               <p className="text-xs text-slate-500">Phân công trực nhật lớp học và sân trường (Quyền nhập: Giáo viên, Ban cán sự, Quản trị viên)</p>
             </div>
@@ -1304,7 +1408,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       return {
                         day: d,
                         groupName: `Tổ ${teamNum}`,
-                        studentNames: students.filter(s => s.team === `Tổ ${teamNum}`).slice(0, 3).map(s => s.fullName),
+                        studentNames: cleaningClassStudents.filter(s => s.team === `Tổ ${teamNum}`).map(s => s.fullName),
                         status: 'Chưa làm'
                       };
                     });
@@ -1319,22 +1423,33 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               )}
               {(isClassOfficer || currentUser.role === 'teacher' || currentUser.role === 'admin') && (
                 <button
-                  onClick={() => {
-                    soundFx.playSuccess();
-                    const updated = { ...cleaning };
-                    updated.tasks[0].status = 'Đã hoàn thành';
-                    onUpdateCleaning(updated);
-                    alert('Đã cập nhật trạng thái trực vệ sinh!');
+                  disabled={cleaningLoading || todayCleaningTaskIndex < 0}
+                  title={todayCleaningTaskIndex < 0 ? 'Hôm nay không có lịch trực vệ sinh' : `Xác nhận lịch ${todayCleaningDay}`}
+                  onClick={async () => {
+                    if (todayCleaningTaskIndex < 0) return;
+                    const updated = { ...cleaning, tasks: cleaning.tasks.map((task, index) => index === todayCleaningTaskIndex ? { ...task, status: 'Đã hoàn thành' as const } : task) };
+                    try {
+                      await onUpdateCleaning(updated);
+                      soundFx.playSuccess();
+                      alert('Đã cập nhật trạng thái trực vệ sinh!');
+                    } catch (error) {
+                      alert(error instanceof Error ? error.message : 'Không thể cập nhật lịch vệ sinh.');
+                    }
                   }}
-                  className="px-4 py-2 bg-emerald-500 text-white font-bold rounded-xl text-xs hover:bg-emerald-600 transition-all cursor-pointer flex items-center gap-1.5 shadow-md"
+                  className="px-4 py-2 bg-emerald-500 text-white font-bold rounded-xl text-xs hover:bg-emerald-600 transition-all cursor-pointer flex items-center gap-1.5 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <CheckCircle2 className="w-4 h-4" /> Xác nhận hoàn thành
+                  <CheckCircle2 className="w-4 h-4" /> {todayCleaningTaskIndex < 0 ? 'Hôm nay không có lịch trực' : `Xác nhận ${todayCleaningDay} hoàn thành`}
                 </button>
               )}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {cleaningLoading && <div className="py-10 text-center text-sm font-semibold text-slate-500">Đang tải lịch vệ sinh...</div>}
+          {!cleaningLoading && cleaningLoadError && <div className="py-6 text-center text-sm font-semibold text-rose-600">{cleaningLoadError}</div>}
+          {!cleaningLoading && !cleaningLoadError && cleaning.tasks.length === 0 && (
+            <div className="py-10 text-center text-sm text-slate-500">Lớp chưa có lịch trực vệ sinh. Giáo viên hoặc ban cán sự có thể bấm “Nhập / Sửa lịch trực vệ sinh” để tạo lịch.</div>
+          )}
+          {!cleaningLoading && !cleaningLoadError && cleaning.tasks.length > 0 && <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {cleaning.tasks.map((task, idx) => (
               <div key={idx} className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-center">
                 <div className="font-black text-slate-800 text-sm mb-1">{task.day}</div>
@@ -1351,7 +1466,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 </span>
               </div>
             ))}
-          </div>
+          </div>}
 
           {/* Edit Cleaning Modal */}
           {isEditingCleaning && (
@@ -1402,17 +1517,32 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tên tổ trực</label>
-                          <input
-                            type="text"
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Chọn tổ trực</label>
+                          <select
                             value={task.groupName}
                             onChange={e => {
-                              const updated = { ...editCleaning };
-                              updated.tasks[idx].groupName = e.target.value;
-                              setEditCleaning(updated);
+                              const selectedTeam = e.target.value;
+                              const studentNames = cleaningClassStudents
+                                .filter(student => student.team === selectedTeam)
+                                .map(student => student.fullName);
+                              setEditCleaning(current => ({
+                                ...current,
+                                tasks: current.tasks.map((item, index) => index === idx
+                                  ? { ...item, groupName: selectedTeam, studentNames }
+                                  : item),
+                              }));
                             }}
                             className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800"
-                          />
+                          >
+                            <option value="">Chọn tổ</option>
+                            {task.groupName && !cleaningTeamOptions.includes(task.groupName) && (
+                              <option value={task.groupName}>{task.groupName}</option>
+                            )}
+                            {cleaningTeamOptions.map(team => <option key={team} value={team}>{team}</option>)}
+                          </select>
+                          {cleaningTeamOptions.length === 0 && (
+                            <p className="mt-1 text-[10px] text-rose-600">Lớp chưa có học sinh được xếp tổ.</p>
+                          )}
                         </div>
                         <div>
                           <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Học sinh trực (cách nhau bởi dấu phẩy)</label>
@@ -1440,11 +1570,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     Hủy
                   </button>
                   <button
-                    onClick={() => {
-                      soundFx.playSuccess();
-                      onUpdateCleaning(editCleaning);
-                      setIsEditingCleaning(false);
-                      alert('Cập nhật lịch trực vệ sinh thành công!');
+                    onClick={async () => {
+                      try {
+                        await onUpdateCleaning(editCleaning);
+                        soundFx.playSuccess();
+                        setIsEditingCleaning(false);
+                        alert('Cập nhật lịch trực vệ sinh thành công!');
+                      } catch (error) {
+                        alert(error instanceof Error ? error.message : 'Không thể lưu lịch vệ sinh.');
+                      }
                     }}
                     className="px-5 py-2.5 bg-amber-500 text-white font-bold rounded-xl text-xs hover:bg-amber-600 shadow-md cursor-pointer"
                   >
@@ -1544,7 +1678,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     })
                     .map(st => (
                       <option key={st.id} value={st.id}>
-                        {st.fullName} ({st.className || 'Lớp 8A1'} - {st.team})
+                        {st.fullName} ({st.className || 'Chưa gán lớp'} - {st.team})
                       </option>
                     ))}
                 </select>
@@ -1613,7 +1747,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <button
+              {currentUser.role === 'admin' && <button
                 type="button"
                 onClick={() => {
                   soundFx.playClick();
@@ -1621,11 +1755,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     name: '',
                     academicYear: selectedAcademicYearFilter !== 'all' ? selectedAcademicYearFilter : '2025 - 2026',
                     school: 'THCS Chu Văn An',
-                    homeroomTeacher: currentUser.fullName || 'Cô Lê Thị Mai',
-                    studentCount: 38,
-                    maleCount: 20,
-                    femaleCount: 18,
-                    unionCount: 25,
+                    homeroomTeacher: currentUser.fullName || '',
+                    studentCount: 0,
+                    maleCount: 0,
+                    femaleCount: 0,
+                    unionCount: 0,
                     notes: 'Lớp mới phụ trách'
                   });
                   setShowAddClassModal(true);
@@ -1633,7 +1767,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl text-xs hover:from-amber-600 hover:to-orange-600 transition-all cursor-pointer flex items-center gap-1.5 shadow-md"
               >
                 <Plus className="w-4 h-4" /> Tạo lớp mới
-              </button>
+              </button>}
               <button
                 type="button"
                 onClick={() => {
@@ -1642,14 +1776,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   setStudentImportMode('manual');
                   setAddStudentForm({
                     fullName: '',
-                    className: selectedClassFilter !== 'all' ? selectedClassFilter : (classesList[0]?.name || 'Lớp 8A1'),
+                    className: selectedClassFilter !== 'all' ? selectedClassFilter : (classesList[0]?.name || ''),
                     academicYear: selectedAcademicYearFilter !== 'all' ? selectedAcademicYearFilter : '2025 - 2026',
                     gender: 'Nam',
                     dob: '2012-05-15',
                     phone: '',
                     email: '',
                     address: 'Hà Nội',
-                    position: 'thành viên',
+                    position: '',
                     team: 'Tổ 1',
                     isUnionMember: true
                   });
@@ -1877,7 +2011,7 @@ console.log('[CLASS DEBUG]', {
                                   school: cls.school,
                                   homeroomTeacher: cls.homeroomTeacher || currentUser.fullName,
                                   teacherRole: cls.teacherRole || 'Giáo viên chủ nhiệm',
-                                  subject: cls.subject || 'Ngữ Văn',
+                                  subject: cls.subject || 'Ngữ văn',
                                   studentCount: cls.studentCount,
                                   maleCount: cls.maleCount,
                                   femaleCount: cls.femaleCount,
@@ -1927,6 +2061,14 @@ console.log('[CLASS DEBUG]', {
                 </div>
                 {/* Search & Filters Bar */}
                 <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={exportFilteredStudents}
+                    className="px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold hover:bg-emerald-100 flex items-center gap-1.5"
+                    title="Xuất đúng danh sách đang được lọc"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" /> Xuất CSV
+                  </button>
                   {/* Filter by Academic Year */}
                   <div className="flex items-center gap-1 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-xl">
                     <span className="text-xs font-bold text-amber-800">📅 Năm học:</span>
@@ -2018,7 +2160,7 @@ console.log('[CLASS DEBUG]', {
                             <img src={st.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'} alt="" className="w-7 h-7 rounded-full object-cover border border-amber-200" />
                             <div>
                               <span className="block font-black text-slate-800">{st.fullName}</span>
-                              <span className="text-[10px] text-amber-700 font-bold">{st.className || 'Lớp 8A1'}</span>
+                              <span className="text-[10px] text-amber-700 font-bold">{st.className || 'Chưa gán lớp'}</span>
                             </div>
                           </td>
                           <td className="p-3 text-center text-slate-600 font-semibold">{st.gender || 'Nam'}</td>
@@ -2042,7 +2184,7 @@ console.log('[CLASS DEBUG]', {
                                   setStudentImportMode('manual');
                                   setAddStudentForm({
                                     fullName: st.fullName,
-                                    className: st.className || 'Lớp 8A1',
+                                    className: st.className || '',
                                     academicYear: st.academicYear || '2025 - 2026',
                                     gender: st.gender || 'Nam',
                                     dob: st.dob || '2012-05-15',
@@ -2050,12 +2192,12 @@ console.log('[CLASS DEBUG]', {
                                     email: st.email || '',
                                     address: st.address || 'Hà Nội',
                                     password: st.password || '123456',
-                                    position: ['thành viên', 'lớp trưởng', 'lớp phó học tập', 'lớp phó lao động', 'tổ trưởng'].includes(st.position || '') ? (st.position || 'thành viên') : 'khác',
+                                    position: ['thành viên', 'lớp trưởng', 'lớp phó học tập', 'lớp phó lao động', 'tổ trưởng', 'thủ quỹ', 'cờ đỏ'].includes(st.position || '') ? (st.position || 'thành viên') : 'khác',
                                     team: st.team || 'Tổ 1',
                                     isUnionMember: !!st.isUnionMember,
                                     notes: st.notes || ''
                                   });
-                                  if (!['thành viên', 'lớp trưởng', 'lớp phó học tập', 'lớp phó lao động', 'tổ trưởng'].includes(st.position || '')) {
+                                  if (!['thành viên', 'lớp trưởng', 'lớp phó học tập', 'lớp phó lao động', 'tổ trưởng', 'thủ quỹ', 'cờ đỏ'].includes(st.position || '')) {
                                     setCustomPosition(st.position || '');
                                   } else {
                                     setCustomPosition('');
@@ -2070,11 +2212,17 @@ console.log('[CLASS DEBUG]', {
                               {onDeleteStudent && (
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    if (confirm(`Bạn có chắc chắn muốn xóa hồ sơ học sinh ${st.fullName}?`)) {
+                                  onClick={async () => {
+                                    const accepted = confirm(
+                                      `XÓA TOÀN BỘ DỮ LIỆU HỌC SINH\n\nBạn có chắc muốn xóa ${st.fullName}?\n\nThao tác này sẽ xóa vĩnh viễn:\n• Tài khoản đăng nhập Firebase\n• Hồ sơ học sinh\n• Bài làm và điểm kiểm tra online\n• Điểm hoạt động, rèn luyện và lịch sử trò chơi\n• Dữ liệu điểm danh\n• Giao dịch sử dụng điểm, phản ánh và yêu cầu tài khoản\n• Dữ liệu quỹ lớp và dữ liệu cá nhân liên quan\n\nChọn OK để xóa, Cancel để giữ lại.`
+                                    );
+                                    if (!accepted) return;
+                                    try {
+                                      await onDeleteStudent(st.id);
                                       soundFx.playSuccess();
-                                      onDeleteStudent(st.id);
-                                      showToast(`Đã xóa học sinh ${st.fullName}`);
+                                      showToast(`Đã xóa toàn bộ dữ liệu của ${st.fullName}`);
+                                    } catch (error) {
+                                      alert(error instanceof Error ? error.message : 'Không thể xóa học sinh.');
                                     }
                                   }}
                                   className="p-1.5 text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 rounded-lg cursor-pointer transition-colors"
@@ -2144,7 +2292,7 @@ console.log('[CLASS DEBUG]', {
                   address: 'Hà Nội',
                   password: '123456',
                   teacherRole: 'giáo viên chủ nhiệm',
-                  subject: 'Toán học',
+                  subject: 'Toán',
                   notes: ''
                 });
                 setShowTeacherModal(true);
@@ -2184,7 +2332,7 @@ console.log('[CLASS DEBUG]', {
                       </td>
                       <td className="p-3">
                         <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-extrabold text-[11px] border border-amber-200">
-                          {t.subject || 'Ngữ Văn'}
+                          {t.subject || 'Ngữ văn'}
                         </span>
                       </td>
                       <td className="p-3 text-slate-700 capitalize font-medium">{t.teacherRole || 'Giáo viên bộ môn'}</td>
@@ -2210,7 +2358,7 @@ console.log('[CLASS DEBUG]', {
                                 address: t.address || 'Hà Nội',
                                 password: t.password || '123456',
                                 teacherRole: (t.teacherRole as any) || 'giáo viên chủ nhiệm',
-                                subject: t.subject || 'Toán học',
+                                subject: t.subject || 'Toán',
                                 notes: t.notes || ''
                               });
                               setShowTeacherModal(true);
@@ -2422,55 +2570,16 @@ console.log('[CLASS DEBUG]', {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Môn giảng dạy</label>
-                  <input
-                    type="text"
+                  <select
                     value={addClassForm.subject}
                     onChange={e => setAddClassForm({ ...addClassForm, subject: e.target.value })}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Sĩ số</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={addClassForm.studentCount}
-                    onChange={e => setAddClassForm({ ...addClassForm, studentCount: Number(e.target.value) })}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Số Nam</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={addClassForm.maleCount}
-                    onChange={e => setAddClassForm({ ...addClassForm, maleCount: Number(e.target.value) })}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Số Nữ</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={addClassForm.femaleCount}
-                    onChange={e => setAddClassForm({ ...addClassForm, femaleCount: Number(e.target.value) })}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Đoàn viên</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={addClassForm.unionCount}
-                    onChange={e => setAddClassForm({ ...addClassForm, unionCount: Number(e.target.value) })}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
-                  />
+                  >
+                    {addClassForm.subject && !HIGH_SCHOOL_SUBJECTS.includes(addClassForm.subject as typeof HIGH_SCHOOL_SUBJECTS[number]) && (
+                      <option value={addClassForm.subject}>{addClassForm.subject}</option>
+                    )}
+                    {HIGH_SCHOOL_SUBJECTS.map(subject => <option key={subject} value={subject}>{subject}</option>)}
+                  </select>
                 </div>
               </div>
 
@@ -2550,12 +2659,9 @@ console.log('[CLASS DEBUG]', {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 bg-amber-50 p-1 rounded-xl border border-amber-200">
+                <div className="grid grid-cols-2 gap-1 bg-amber-50 p-1 rounded-xl border border-amber-200">
                   <button type="button" onClick={() => setStudentImportMode('manual')} className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${studentImportMode === 'manual' ? 'bg-white text-amber-900 shadow-xs' : 'text-slate-600'}`}>
                     📝 Nhập thủ công
-                  </button>
-                  <button type="button" onClick={() => setStudentImportMode('bulk')} className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${studentImportMode === 'bulk' ? 'bg-white text-amber-900 shadow-xs' : 'text-slate-600'}`}>
-                    📋 Nhập hàng loạt
                   </button>
                   <button type="button" onClick={() => setStudentImportMode('sheet')} className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${studentImportMode === 'sheet' ? 'bg-white text-amber-900 shadow-xs' : 'text-slate-600'}`}>
                     📊 Google Sheet
@@ -2584,11 +2690,17 @@ console.log('[CLASS DEBUG]', {
                     showErrorToast('Vui lòng kiểm tra các trường được đánh dấu đỏ.');
                     return;
                   }
-                  const assignedClass = addStudentForm.className || (classesList[0]?.name || 'Lớp 8A1');
+                  const assignedClass = addStudentForm.className;
                   const matchedClassObj = classesList.find(c => c.name === assignedClass);
-                  const classId = matchedClassObj?.id || ('c_' + Date.now());
+                  if (!matchedClassObj) {
+                    showErrorToast('Vui lòng chọn một lớp hợp lệ trước khi thêm học sinh.');
+                    return;
+                  }
+                  const classId = matchedClassObj.id;
 
-                  const finalPos = addStudentForm.position === 'khác' ? (customPosition.trim() || 'Thành viên') : addStudentForm.position;
+                  const finalPos = normalizeStudentPosition(
+                    addStudentForm.position === 'khác' ? customPosition : addStudentForm.position
+                  );
 
                   const studentData: User = {
                     id: editingStudent ? editingStudent.id : ('s_' + Date.now()),
@@ -2695,19 +2807,23 @@ console.log('[CLASS DEBUG]', {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Chức vụ trong lớp</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Chức vụ trong lớp (không bắt buộc)</label>
                     <select
                       value={addStudentForm.position}
                       onChange={e => setAddStudentForm({ ...addStudentForm, position: e.target.value })}
                       className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800"
                     >
+                      <option value="">-- Bỏ trống: mặc định là Thành viên --</option>
                       <option value="thành viên">Học sinh thành viên</option>
                       <option value="lớp trưởng">Lớp trưởng (Cán bộ lớp)</option>
                       <option value="lớp phó học tập">Lớp phó học tập (Cán bộ lớp)</option>
                       <option value="lớp phó lao động">Lớp phó lao động (Cán bộ lớp)</option>
                       <option value="tổ trưởng">Tổ trưởng</option>
+                      <option value="thủ quỹ">Thủ quỹ</option>
+                      <option value="cờ đỏ">Cờ đỏ</option>
                       <option value="khác">✏️ Vai trò/Chức vụ khác (Tự nhập)</option>
                     </select>
+                    <p className="mt-1 text-[11px] text-slate-500">Nếu không chọn chức vụ, hệ thống sẽ tự lưu học sinh là <strong>thành viên</strong>.</p>
                   </div>
                   {addStudentForm.position === 'khác' ? (
                     <div>
@@ -2804,114 +2920,43 @@ console.log('[CLASS DEBUG]', {
               </form>
             )}
 
-            {studentImportMode === 'bulk' && (
-              <div className="space-y-3">
-                <p className="text-xs text-slate-600">
-                  Dán danh sách (tối đa 100 dòng). Định dạng: <strong>Họ tên, Email, Mật khẩu, Giới tính, Ngày sinh, SĐT, Tổ, Chức vụ</strong>. Có thể bỏ cột mật khẩu để dùng mặc định <strong>123456</strong>.
-                </p>
-                <textarea
-                  rows={6}
-                  placeholder={`Nguyễn Văn An, an@iten.edu.vn, 123456, Nam, 2012-05-15, 0912345678, Tổ 1, lớp trưởng\nTrần Thị Bình, binh@iten.edu.vn, 123456, Nữ, 2012-08-20, 0987654321, Tổ 2, thành viên`}
-                  value={studentBulkText}
-                  onChange={e => setStudentBulkText(e.target.value)}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-mono"
-                />
-                <button
-                  disabled={isSavingStudent}
-                  onClick={async () => {
-                    if (!studentBulkText.trim()) return;
-                    const lines = studentBulkText.split('\n').filter(l => l.trim());
-                    if (lines.length > 100) {
-                      showErrorToast('Mỗi lần chỉ được nhập tối đa 100 học sinh.');
-                      return;
-                    }
-                    const assignedClass = addStudentForm.className || (classesList[0]?.name || 'Lớp 8A1');
-                    const matchedClass = classesList.find(c => c.name === assignedClass);
-                    if (!matchedClass) {
-                      showErrorToast('Vui lòng chọn một lớp hợp lệ.');
-                      return;
-                    }
-                    const newStudentsList: User[] = lines.map((line, idx) => {
-                      const parts = line.split(',').map(p => p.trim());
-                      const passwordColumnOmitted = ['nam', 'nữ', 'khác'].includes((parts[2] || '').toLocaleLowerCase('vi'));
-                      const dataOffset = passwordColumnOmitted ? -1 : 0;
-                      const gender = (parts[3 + dataOffset] || '').toLocaleLowerCase('vi');
-                      return {
-                        id: 's_bulk_' + Date.now() + '_' + idx,
-                        username: parts[1]?.split('@')[0] || '',
-                        fullName: parts[0] || '',
-                        role: 'student',
-                        email: parts[1] || '',
-                        password: passwordColumnOmitted ? '123456' : (parts[2] || '123456'),
-                        gender: (gender === 'nữ' ? 'Nữ' : gender === 'khác' ? 'Khác' : 'Nam') as any,
-                        dob: parts[4 + dataOffset] || '',
-                        phone: parts[5 + dataOffset] || '',
-                        team: parts[6 + dataOffset] || 'Tổ 1',
-                        position: (parts[7 + dataOffset] || 'thành viên') as any,
-                        classId: matchedClass.id,
-                        className: assignedClass,
-                        academicYear: addStudentForm.academicYear || matchedClass.academicYear || '',
-                        school: matchedClass.school || '',
-                        address: '',
-                        isUnionMember: false
-                      };
-                    });
-                    const invalidIndex = newStudentsList.findIndex(st => !st.fullName || !/^\S+@\S+\.\S+$/.test(st.email) || (st.password || '').length < 6);
-                    if (invalidIndex >= 0) {
-                      showErrorToast(`Dòng ${invalidIndex + 1} chưa đủ họ tên, email hợp lệ hoặc mật khẩu ít nhất 6 ký tự.`);
-                      return;
-                    }
-                    if (new Set(newStudentsList.map(st => st.email.toLowerCase())).size !== newStudentsList.length) {
-                      showErrorToast('Danh sách có email bị trùng.');
-                      return;
-                    }
-                    setIsSavingStudent(true);
-                    try {
-                      const created = await onAddStudentsBulk?.(newStudentsList);
-                      if (!created) throw new Error('Chức năng nhập hàng loạt chưa sẵn sàng.');
-                      soundFx.playSuccess();
-                      setStudentBulkText('');
-                      setShowAddStudentModal(false);
-                      showToast(`Đã tạo tài khoản cho ${created.length} học sinh trong ${assignedClass}.`);
-                    } catch (error: unknown) {
-                      showErrorToast((error as { message?: string })?.message || 'Không thể nhập danh sách học sinh.');
-                    } finally {
-                      setIsSavingStudent(false);
-                    }
-                  }}
-                  className="w-full py-2.5 bg-amber-500 disabled:bg-slate-300 text-white font-bold rounded-xl text-xs hover:bg-amber-600"
-                >
-                  {isSavingStudent ? 'Đang tạo tài khoản...' : `Tải nạp & Nhập hàng loạt (${studentBulkText.split('\n').filter(l => l.trim()).length} dòng)`}
-                </button>
-              </div>
-            )}
-
             {studentImportMode === 'sheet' && (
               <div className="space-y-3">
                 <p className="text-xs text-slate-600">
-                  Sheet cần được chia sẻ ở chế độ “Bất kỳ ai có đường liên kết đều có thể xem”. Hàng đầu tiên là tiêu đề; các cột theo thứ tự: <strong>Họ tên, Email, Mật khẩu, Giới tính, Ngày sinh, SĐT, Tổ, Chức vụ</strong>. Cột mật khẩu có thể bỏ; hệ thống sẽ dùng <strong>123456</strong>.
+                  Sheet cần được chia sẻ ở chế độ “Bất kỳ ai có đường liên kết đều có thể xem”. Hàng đầu tiên là tiêu đề; các cột theo thứ tự: <strong>Họ tên, Email, Mật khẩu, Giới tính, Ngày sinh, SĐT, Tổ, Chức vụ, Đoàn viên</strong>. Cột Đoàn viên có thể dùng checkbox hoặc nhập Có/Không. Để trống mật khẩu sẽ dùng <strong>123456</strong>; để trống chức vụ sẽ dùng <strong>thành viên</strong>.
                 </p>
-                <input
-                  type="url"
-                  placeholder="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit"
-                  value={studentSheetUrl}
-                  onChange={e => setStudentSheetUrl(e.target.value)}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-800"
-                />
+                <button type="button" onClick={downloadStudentImportTemplate} className="w-full py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold hover:bg-emerald-100 flex items-center justify-center gap-1.5">
+                  <FileSpreadsheet className="w-4 h-4" /> Tải CSV mẫu để mở bằng Excel hoặc Google Sheet
+                </button>
+                <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs text-sky-800">
+                  <p className="font-black">Google Sheet đã được cấu hình sẵn</p>
+                  <a
+                    href={STUDENT_GOOGLE_SHEET_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 block truncate font-semibold underline hover:text-sky-950"
+                    title={STUDENT_GOOGLE_SHEET_URL}
+                  >
+                    Mở danh sách học sinh trên Google Sheet
+                  </a>
+                </div>
                 <button
                   disabled={isSavingStudent}
                   onClick={async () => {
                     if (!studentSheetUrl.trim()) {
+                      setStudentSheetResult({ type: 'error', message: 'Vui lòng nhập link Google Sheet.' });
                       showErrorToast('Vui lòng nhập link Google Sheet.');
                       return;
                     }
-                    const assignedClass = addStudentForm.className || (classesList[0]?.name || 'Lớp 8A1');
+                    const assignedClass = addStudentForm.className;
                     const matchedClass = classesList.find(c => c.name === assignedClass);
                     if (!matchedClass || !onAddStudentsBulk) {
+                      setStudentSheetResult({ type: 'error', message: 'Vui lòng chọn một lớp hợp lệ.' });
                       showErrorToast('Vui lòng chọn một lớp hợp lệ.');
                       return;
                     }
                     setIsSavingStudent(true);
+                    setStudentSheetResult({ type: 'info', message: 'Đang đọc và đối chiếu dữ liệu Google Sheet...' });
                     try {
                       if (!auth.currentUser) throw new Error('Phiên đăng nhập đã hết hạn.');
                       const idToken = await auth.currentUser.getIdToken();
@@ -2924,7 +2969,7 @@ console.log('[CLASS DEBUG]', {
                       if (!response.ok) throw new Error(result?.error || 'Không thể đọc Google Sheet.');
                       const rows = (result.rows as string[][]).slice(1).filter(row => row.some(cell => cell.trim()));
                       if (!rows.length) throw new Error('Sheet chưa có dòng học sinh nào.');
-                      const sheetStudents: User[] = rows.map((parts, idx) => {
+                      const parsedStudents: User[] = rows.map((parts, idx) => {
                         const passwordColumnOmitted = ['nam', 'nữ', 'khác'].includes((parts[2] || '').toLocaleLowerCase('vi'));
                         const dataOffset = passwordColumnOmitted ? -1 : 0;
                         const gender = (parts[3 + dataOffset] || '').toLocaleLowerCase('vi');
@@ -2938,34 +2983,60 @@ console.log('[CLASS DEBUG]', {
                           gender: gender === 'nữ' ? 'Nữ' : gender === 'khác' ? 'Khác' : 'Nam',
                           dob: parts[4 + dataOffset] || '',
                           phone: parts[5 + dataOffset] || '',
-                          team: parts[6 + dataOffset] || 'Tổ 1',
-                          position: parts[7 + dataOffset] || 'thành viên',
+                          team: normalizeStudentTeam(parts[6 + dataOffset]) || 'Tổ 1',
+                          position: normalizeStudentPosition(parts[7 + dataOffset]),
                           classId: matchedClass.id,
                           className: assignedClass,
                           academicYear: addStudentForm.academicYear || matchedClass.academicYear || '',
                           school: matchedClass.school || '',
                           address: '',
-                          isUnionMember: false,
+                          isUnionMember: normalizeUnionMember(parts[8 + dataOffset]),
                         };
                       });
-                      const invalidIndex = sheetStudents.findIndex(st => !st.fullName || !/^\S+@\S+\.\S+$/.test(st.email) || (st.password || '').length < 6);
-                      if (invalidIndex >= 0) throw new Error(`Dòng ${invalidIndex + 2} trong Sheet chưa đủ họ tên, email hợp lệ hoặc mật khẩu ít nhất 6 ký tự.`);
+                      const sheetStudents = parsedStudents.filter(st =>
+                        Boolean(st.fullName) && /^\S+@\S+\.\S+$/.test(st.email) && (st.password || '').length >= 6
+                      );
+                      const skippedCount = parsedStudents.length - sheetStudents.length;
+                      if (!sheetStudents.length) {
+                        throw new Error(`Không có dòng hợp lệ để đồng bộ. Đã bỏ qua ${skippedCount} dòng thiếu thông tin.`);
+                      }
                       if (new Set(sheetStudents.map(st => st.email.toLowerCase())).size !== sheetStudents.length) throw new Error('Google Sheet có email bị trùng.');
                       const created = await onAddStudentsBulk(sheetStudents);
+                      const operations = created as Array<User & { syncOperation?: 'created' | 'updated' | 'unchanged' }>;
+                      const createdCount = operations.filter(item => item.syncOperation === 'created').length;
+                      const updatedCount = operations.filter(item => item.syncOperation === 'updated').length;
+                      const unchangedCount = operations.filter(item => item.syncOperation === 'unchanged').length;
                       soundFx.playSuccess();
-                      setStudentSheetUrl('');
-                      setShowAddStudentModal(false);
-                      showToast(`Đã tạo tài khoản cho ${created.length} học sinh từ Google Sheet.`);
+                      const resultMessage = `Đồng bộ hoàn tất: thêm ${createdCount}, cập nhật ${updatedCount}, không đổi ${unchangedCount}, bỏ qua ${skippedCount} dòng thiếu thông tin.`;
+                      setStudentSheetResult({ type: 'success', message: resultMessage });
+                      showToast(resultMessage);
                     } catch (error: unknown) {
-                      showErrorToast((error as { message?: string })?.message || 'Không thể nhập học sinh từ Google Sheet.');
+                      const message = (error as { message?: string })?.message || 'Không thể nhập học sinh từ Google Sheet.';
+                      console.error('[Google Sheet Student Sync Error]', error);
+                      setStudentSheetResult({ type: 'error', message });
+                      showErrorToast(message);
                     } finally {
                       setIsSavingStudent(false);
                     }
                   }}
                   className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 disabled:from-slate-300 disabled:to-slate-300 text-white font-bold rounded-xl text-xs hover:from-emerald-700 hover:to-teal-700 shadow-md flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <FileSpreadsheet className="w-4 h-4" /> {isSavingStudent ? 'Đang đọc và tạo tài khoản...' : 'Đồng bộ & Nhập từ Google Sheet'}
+                  <FileSpreadsheet className="w-4 h-4" /> {isSavingStudent ? 'Đang cập nhật danh sách...' : 'Cập nhật học sinh từ Google Sheet'}
                 </button>
+                {studentSheetResult && (
+                  <div
+                    role="status"
+                    className={`rounded-xl border px-4 py-3 text-xs font-bold ${
+                      studentSheetResult.type === 'success'
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        : studentSheetResult.type === 'error'
+                          ? 'border-rose-200 bg-rose-50 text-rose-700'
+                          : 'border-sky-200 bg-sky-50 text-sky-700'
+                    }`}
+                  >
+                    {studentSheetResult.message}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -3009,27 +3080,35 @@ console.log('[CLASS DEBUG]', {
                 >
                   📋 Hàng loạt
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setTeacherImportMode('sheet')}
-                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                    teacherImportMode === 'sheet' ? 'bg-white text-amber-900 shadow-xs' : 'text-slate-600'
-                  }`}
-                >
-                  📊 Google Sheet Link
-                </button>
               </div>
             )}
 
             {teacherImportMode === 'manual' && (
               <form
-                onSubmit={e => {
+                onSubmit={async e => {
                   e.preventDefault();
+                  setTeacherFormError('');
                   if (!teacherForm.fullName.trim()) {
-                    alert('Vui lòng nhập tên giáo viên!');
+                    setTeacherFormError('Vui lòng nhập tên giáo viên.');
                     return;
                   }
-                  soundFx.playSuccess();
+                  const generatedEmailName = teacherForm.fullName
+                    .trim()
+                    .toLocaleLowerCase('vi')
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/đ/g, 'd')
+                    .replace(/[^a-z0-9]+/g, '.')
+                    .replace(/^\.|\.$/g, '');
+                  const resolvedEmail = (teacherForm.email.trim() || `${generatedEmailName}@iten.edu.vn`).toLowerCase();
+                  if (!/^\S+@\S+\.\S+$/.test(resolvedEmail)) {
+                    setTeacherFormError('Vui lòng nhập email đăng nhập hợp lệ cho giáo viên.');
+                    return;
+                  }
+                  if ((teacherForm.password || '').length < 6) {
+                    setTeacherFormError('Mật khẩu khởi tạo phải có ít nhất 6 ký tự.');
+                    return;
+                  }
                   const teacherData: User = {
                     id: editingTeacher ? editingTeacher.id : ('t_' + Date.now()),
                     username: editingTeacher ? editingTeacher.username : ('gv_' + Date.now().toString().slice(-4)),
@@ -3039,7 +3118,7 @@ console.log('[CLASS DEBUG]', {
                     school: teacherForm.school || 'THCS Chu Văn An',
                     gender: teacherForm.gender,
                     dob: teacherForm.dob,
-                    email: teacherForm.email.trim() || (teacherForm.fullName.toLowerCase().replace(/\s+/g, '') + '@iten.edu.vn'),
+                    email: resolvedEmail,
                     phone: teacherForm.phone || '0987654321',
                     address: teacherForm.address || 'Hà Nội',
                     teacherRole: teacherForm.teacherRole,
@@ -3048,16 +3127,29 @@ console.log('[CLASS DEBUG]', {
                     avatar: editingTeacher?.avatar || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80'
                   };
 
-                  if (editingTeacher && onUpdateTeacher) {
-                    onUpdateTeacher(teacherData);
-                    showToast(`Cập nhật thành công tài khoản giáo viên ${teacherData.fullName}!`);
-                  } else if (onAddTeacher) {
-                    onAddTeacher(teacherData);
-                    showToast(`Cấp thành công tài khoản cho giáo viên ${teacherData.fullName}!`);
+                  setIsSavingTeacher(true);
+                  setTeacherForm(current => ({ ...current, email: resolvedEmail }));
+                  try {
+                    if (editingTeacher && onUpdateTeacher) {
+                      onUpdateTeacher(teacherData);
+                      showToast(`Cập nhật thành công tài khoản giáo viên ${teacherData.fullName}!`);
+                    } else if (onAddTeacher) {
+                      await onAddTeacher(teacherData);
+                      showToast(`Cấp thành công tài khoản cho giáo viên ${teacherData.fullName}!`);
+                    }
+                    soundFx.playSuccess();
+                    setShowTeacherModal(false);
+                    setEditingTeacher(null);
+                  } catch (error: unknown) {
+                    soundFx.playError();
+                    const message = typeof error === 'object' && error !== null && 'message' in error
+                      ? String((error as { message: unknown }).message)
+                      : 'Không thể tạo tài khoản giáo viên.';
+                    setTeacherFormError(message);
+                    showErrorToast(message);
+                  } finally {
+                    setIsSavingTeacher(false);
                   }
-
-                  setShowTeacherModal(false);
-                  setEditingTeacher(null);
                 }}
                 className="space-y-3"
               >
@@ -3088,13 +3180,16 @@ console.log('[CLASS DEBUG]', {
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Môn giảng dạy chính</label>
-                    <input
-                      type="text"
-                      placeholder="Toán học, Ngữ Văn, Tiếng Anh..."
+                    <select
                       value={teacherForm.subject}
                       onChange={e => setTeacherForm({ ...teacherForm, subject: e.target.value })}
                       className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800"
-                    />
+                    >
+                      {teacherForm.subject && !HIGH_SCHOOL_SUBJECTS.includes(teacherForm.subject as typeof HIGH_SCHOOL_SUBJECTS[number]) && (
+                        <option value={teacherForm.subject}>{teacherForm.subject}</option>
+                      )}
+                      {HIGH_SCHOOL_SUBJECTS.map(subject => <option key={subject} value={subject}>{subject}</option>)}
+                    </select>
                   </div>
                 </div>
 
@@ -3141,16 +3236,20 @@ console.log('[CLASS DEBUG]', {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Email liên hệ</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Email đăng nhập</label>
                     <input
                       type="email"
                       value={teacherForm.email}
-                      onChange={e => setTeacherForm({ ...teacherForm, email: e.target.value })}
+                      onChange={e => {
+                        setTeacherForm({ ...teacherForm, email: e.target.value });
+                        setTeacherFormError('');
+                      }}
+                      placeholder="Bỏ trống để hệ thống tự tạo"
                       className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Mật khẩu khởi tạo</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Mật khẩu khởi tạo *</label>
                     <input
                       type="text"
                       value={teacherForm.password}
@@ -3170,19 +3269,27 @@ console.log('[CLASS DEBUG]', {
                   />
                 </div>
 
+                {teacherFormError && (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700" role="alert">
+                    {teacherFormError}
+                  </div>
+                )}
+
                 <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                   <button
                     type="button"
                     onClick={() => { setShowTeacherModal(false); setEditingTeacher(null); }}
+                    disabled={isSavingTeacher}
                     className="px-4 py-2 bg-slate-100 text-slate-600 font-bold rounded-xl text-xs hover:bg-slate-200 cursor-pointer"
                   >
                     Hủy
                   </button>
                   <button
                     type="submit"
+                    disabled={isSavingTeacher}
                     className="px-5 py-2 bg-amber-500 text-white font-bold rounded-xl text-xs hover:bg-amber-600 shadow-md cursor-pointer"
                   >
-                    {editingTeacher ? 'Lưu Giáo Viên' : 'Cấp Tài Khoản'}
+                    {isSavingTeacher ? 'Đang lưu...' : editingTeacher ? 'Lưu Giáo Viên' : 'Cấp Tài Khoản'}
                   </button>
                 </div>
               </form>
@@ -3212,7 +3319,7 @@ console.log('[CLASS DEBUG]', {
                         fullName: parts[0] || `Giáo viên ${idx + 1}`,
                         role: 'teacher',
                         password: '123456',
-                        subject: parts[1] || 'Ngữ Văn',
+                        subject: parts[1] || 'Ngữ văn',
                         teacherRole: (parts[2] || 'giáo viên bộ môn') as any,
                         phone: parts[3] || '0987654321',
                         email: parts[4] || `gv${idx}@iten.edu.vn`,
@@ -3231,33 +3338,6 @@ console.log('[CLASS DEBUG]', {
               </div>
             )}
 
-            {teacherImportMode === 'sheet' && (
-              <div className="space-y-3">
-                <p className="text-xs text-slate-600">Nhập link Google Sheet chứa danh sách giáo viên để cấp tài khoản đồng bộ tự động.</p>
-                <input
-                  type="url"
-                  placeholder="https://docs.google.com/spreadsheets/d/..."
-                  value={teacherSheetUrl}
-                  onChange={e => setTeacherSheetUrl(e.target.value)}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold"
-                />
-                <button
-                  onClick={() => {
-                    soundFx.playSuccess();
-                    const sampleTeachers: User[] = [
-                      { id: 't_sh_1_' + Date.now(), username: 'gv_sh1', fullName: 'Đỗ Tiến Dũng', role: 'teacher', password: '123456', gender: 'Nam', dob: '1985-03-12', phone: '0988112233', email: 'dung.do@iten.edu.vn', address: 'Hà Nội', subject: 'Vật lý', teacherRole: 'giáo viên chủ nhiệm' as any, school: 'THCS Chu Văn An' },
-                      { id: 't_sh_2_' + Date.now(), username: 'gv_sh2', fullName: 'Lê Minh Tú', role: 'teacher', password: '123456', gender: 'Nam', dob: '1990-11-25', phone: '0977223344', email: 'tu.le@iten.edu.vn', address: 'Hà Nội', subject: 'Hóa học', teacherRole: 'giáo viên bộ môn' as any, school: 'THCS Chu Văn An' }
-                    ];
-                    if (onAddTeachersBulk) onAddTeachersBulk(sampleTeachers);
-                    setShowTeacherModal(false);
-                    showToast(`Đồng bộ dữ liệu giáo viên thành công từ Google Sheet!`);
-                  }}
-                  className="w-full py-2.5 bg-emerald-600 text-white font-bold rounded-xl text-xs hover:bg-emerald-700 cursor-pointer"
-                >
-                  Đồng bộ & Cấp tài khoản từ Sheet
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}

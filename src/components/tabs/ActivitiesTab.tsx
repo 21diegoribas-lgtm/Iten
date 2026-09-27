@@ -17,7 +17,6 @@ import {
 } from '../../types';
 import { soundFx } from '../../utils/sound';
 import { SpyGameView } from '../activities/SpyGameView';
-import { KeyboardHeroView } from '../activities/KeyboardHeroView';
 import { MemoryGameView } from '../activities/MemoryGameView';
 import { AchievementGardenView } from '../activities/AchievementGardenView';
 import { AttendanceView } from '../activities/AttendanceView';
@@ -29,7 +28,6 @@ import {
   Eye,
   Flower2,
   Flag,
-  PenTool,
   Copy,
   Trophy,
   Play,
@@ -134,7 +132,7 @@ export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
   onActivityPointSaved
 }) => {
   const [activeActivity, setActiveActivity] = useState<
-    'attendance' | 'spy' | 'flower' | 'racing' | 'keyboard' | 'memory' | 'garden'
+    'attendance' | 'spy' | 'flower' | 'racing' | 'memory' | 'garden'
   >('flower');
 
   // Flower game interactive state
@@ -748,7 +746,6 @@ export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
     { id: 'racing', label: 'Đường đua học tập', icon: Flag, color: 'from-amber-400 to-orange-500' },
     { id: 'memory', label: 'Thách thức thẻ nhớ', icon: Copy, color: 'from-sky-400 to-blue-500' },
     { id: 'spy', label: 'Truy tìm gián điệp', icon: Eye, color: 'from-purple-400 to-indigo-500' },
-    { id: 'keyboard', label: 'Anh hùng bàn phím', icon: PenTool, color: 'from-emerald-400 to-teal-500' },
     { id: 'attendance', label: 'Điểm danh', icon: CheckSquare, color: 'from-cyan-400 to-blue-500' },
     { id: 'garden', label: 'Vườn thành tích', icon: Trophy, color: 'from-yellow-400 to-amber-500' }
   ];
@@ -766,7 +763,7 @@ export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
             Khu vực hoạt động ITEN
           </h2>
           <p className="text-sm font-medium text-white/95 max-w-2xl">
-            Tham gia 7 hoạt động chính thức để rèn luyện kỹ năng, tích lũy điểm thi đua rèn luyện và học tập.
+            Tham gia 6 hoạt động chính thức để rèn luyện kỹ năng, tích lũy điểm thi đua rèn luyện và học tập.
           </p>
         </div>
       </div>
@@ -842,22 +839,6 @@ export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
           onResetMyVotes={onResetSpyVotes}
           onClearAllVotes={onClearAllSpyVotes}
           onFinishMission={onFinishSpyMission}
-          onActivityPointSaved={onActivityPointSaved}
-        />
-      )}
-
-      {/* 4.5 – ANH HÙNG BÀN PHÍM */}
-      {activeActivity === 'keyboard' && (
-        <KeyboardHeroView
-          currentUser={currentUser}
-          students={students}
-          keyboardTask={keyboardTask}
-          onUpdateKeyboardTask={onUpdateKeyboardTask}
-          onSaveTaskConfig={onSaveKeyboardTaskConfig}
-          onSaveSubmission={onSaveKeyboardSubmission}
-          onSetLike={onSetKeyboardLike}
-          onAddComment={onAddKeyboardComment}
-          onGradeSubmission={onGradeKeyboardSubmission}
           onActivityPointSaved={onActivityPointSaved}
         />
       )}

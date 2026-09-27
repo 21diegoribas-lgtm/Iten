@@ -2,7 +2,6 @@ import {
   collection,
   doc,
   getDocs,
-  limit,
   query,
   serverTimestamp,
   where,
@@ -93,7 +92,17 @@ export async function loadActivityPointsForUser(userId: string): Promise<Activit
   const snapshot = await getDocs(query(
     collection(db, ACTIVITY_POINTS_COLLECTION),
     where('userId', '==', userId),
-    limit(500),
+  ));
+  return snapshot.docs
+    .map(item => ({ ...item.data(), id: item.id }) as ActivityPointRecord)
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+}
+
+export async function loadActivityPointsForClass(classId: string): Promise<ActivityPointRecord[]> {
+  if (!classId) return [];
+  const snapshot = await getDocs(query(
+    collection(db, ACTIVITY_POINTS_COLLECTION),
+    where('classId', '==', classId),
   ));
   return snapshot.docs
     .map(item => ({ ...item.data(), id: item.id }) as ActivityPointRecord)

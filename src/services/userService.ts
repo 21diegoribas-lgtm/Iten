@@ -70,6 +70,7 @@ export function docToUser(docSnap: DocumentSnapshot): User | null {
     notes: typeof data.notes === 'string' ? data.notes : undefined,
     avatar: typeof data.avatar === 'string' ? data.avatar : undefined,
     avatarId: typeof data.avatarId === 'string' ? data.avatarId : undefined,
+    mustChangePassword: data.mustChangePassword === true,
   };
 }
 

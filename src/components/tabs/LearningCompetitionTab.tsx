@@ -47,7 +47,9 @@ export const LearningCompetitionTab: React.FC<LearningCompetitionTabProps> = ({
   // Privileges: Only Teacher or Admin can add/edit/delete learning records
   const isTeacherOrAdmin = currentUser.role === 'teacher' || currentUser.role === 'admin';
   const isStudent = currentUser.role === 'student';
-  const canAddRecord = isTeacherOrAdmin;
+  const teacherSubject = currentUser.role === 'teacher' ? (currentUser.subject || '').trim() : '';
+  const normalizeSubject = (value?: string) => (value || '').trim().toLocaleLowerCase('vi');
+  const canAddRecord = currentUser.role === 'admin' || (currentUser.role === 'teacher' && Boolean(teacherSubject));
 
   // Quick Modal state
   const [showQuickAddModal, setShowQuickAddModal] = useState<boolean>(false);
@@ -89,7 +91,7 @@ export const LearningCompetitionTab: React.FC<LearningCompetitionTabProps> = ({
   const [formWeek, setFormWeek] = useState<number>(4);
   const [formTeam, setFormTeam] = useState<string>('all');
   const [formStudentId, setFormStudentId] = useState<string>(students[0]?.id || '');
-  const [formSubjectName, setFormSubjectName] = useState<string>('Toán');
+  const [formSubjectName, setFormSubjectName] = useState<string>(teacherSubject || 'Toán');
   const [formRewardPoints, setFormRewardPoints] = useState<number>(0);
   const [formRewardReason, setFormRewardReason] = useState<string>('');
   const [formViolationPoints, setFormViolationPoints] = useState<number>(0);
@@ -115,10 +117,14 @@ export const LearningCompetitionTab: React.FC<LearningCompetitionTabProps> = ({
 
   const startEditRecord = (rec: LearningRecord) => {
     if (!canAddRecord) return;
+    if (currentUser.role === 'teacher' && normalizeSubject(rec.subjectName) !== normalizeSubject(teacherSubject)) {
+      alert(`Bạn chỉ được chỉnh sửa điểm môn ${teacherSubject}.`);
+      return;
+    }
     setEditingRecord(rec);
     setEditStudentId(rec.studentId);
     setEditType(rec.type);
-    setEditSubjectName(rec.subjectName || 'Toán');
+    setEditSubjectName(currentUser.role === 'teacher' ? teacherSubject : (rec.subjectName || 'Toán'));
     setEditActivityName(rec.activityName);
     setEditPoints(Math.abs(rec.points));
     setEditWeek(rec.week);
@@ -130,6 +136,10 @@ export const LearningCompetitionTab: React.FC<LearningCompetitionTabProps> = ({
   const handleSaveEditRecord = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingRecord || !canAddRecord) return;
+    if (currentUser.role === 'teacher' && normalizeSubject(editSubjectName) !== normalizeSubject(teacherSubject)) {
+      alert(`Bạn chỉ được nhập điểm môn ${teacherSubject}.`);
+      return;
+    }
     const st = students.find((s) => s.id === editStudentId);
     if (!st || !editActivityName.trim()) {
       alert('Vui lòng chọn học sinh và nhập nội dung lí do!');
@@ -293,6 +303,10 @@ export const LearningCompetitionTab: React.FC<LearningCompetitionTabProps> = ({
     e.preventDefault();
     if (!canAddRecord) {
       alert('Chỉ có Giáo viên hoặc Quản trị viên mới có quyền nhập điểm học tập!');
+      return;
+    }
+    if (currentUser.role === 'teacher' && normalizeSubject(formSubjectName) !== normalizeSubject(teacherSubject)) {
+      alert(`Tài khoản của bạn chỉ được nhập điểm môn ${teacherSubject}.`);
       return;
     }
     const st = students.find((s) => s.id === formStudentId);
@@ -1186,14 +1200,16 @@ export const LearningCompetitionTab: React.FC<LearningCompetitionTabProps> = ({
                 <select
                   value={formSubjectName}
                   onChange={(e) => setFormSubjectName(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:ring-2 focus:ring-blue-500"
+                  disabled={currentUser.role === 'teacher'}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-blue-50 disabled:text-blue-800"
                 >
-                  {SUBJECTS_LIST.map((sub) => (
+                  {(currentUser.role === 'teacher' ? [teacherSubject] : SUBJECTS_LIST).filter(Boolean).map((sub) => (
                     <option key={sub} value={sub}>
                       Môn {sub}
                     </option>
                   ))}
                 </select>
+                {currentUser.role === 'teacher' && <p className="mt-1 text-xs font-bold text-blue-700">Môn được khóa theo hồ sơ giáo viên: {teacherSubject || 'Chưa được thiết lập'}</p>}
               </div>
 
               {/* 4. Điểm cộng & Lí do */}
@@ -1317,9 +1333,10 @@ export const LearningCompetitionTab: React.FC<LearningCompetitionTabProps> = ({
                 <select
                   value={editSubjectName}
                   onChange={(e) => setEditSubjectName(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800"
+                  disabled={currentUser.role === 'teacher'}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 disabled:cursor-not-allowed disabled:bg-blue-50 disabled:text-blue-800"
                 >
-                  {SUBJECTS_LIST.map((sub) => (
+                  {(currentUser.role === 'teacher' ? [teacherSubject] : SUBJECTS_LIST).filter(Boolean).map((sub) => (
                     <option key={sub} value={sub}>
                       Môn {sub}
                     </option>

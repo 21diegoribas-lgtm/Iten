@@ -3,6 +3,8 @@ import {
   doc,
   getDoc,
   getDocs,
+  query,
+  where,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -12,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { NotificationItem } from '../types';
+import type { User } from '../types';
 
 export const NOTIFICATIONS_COLLECTION = 'notifications';
 
@@ -124,6 +127,25 @@ export async function getNotifications(): Promise<NotificationItem[]> {
   });
 
   return notifications;
+}
+
+export async function getNotificationsForUser(user: User): Promise<NotificationItem[]> {
+  if (user.role === 'admin' || user.role === 'teacher') return getNotifications();
+  const refs = [
+    query(collection(db, NOTIFICATIONS_COLLECTION), where('targetType', '==', 'all')),
+    ...(user.classId ? [query(collection(db, NOTIFICATIONS_COLLECTION), where('targetClassId', '==', user.classId))] : []),
+    ...(user.team ? [query(collection(db, NOTIFICATIONS_COLLECTION), where('targetTeam', '==', user.team))] : []),
+    query(collection(db, NOTIFICATIONS_COLLECTION), where('targetStudentId', '==', user.id)),
+  ];
+  const snapshots = await Promise.all(refs.map(ref => getDocs(ref)));
+  const byId = new Map<string, NotificationItem>();
+  snapshots.forEach(snapshot => snapshot.docs.forEach(item => {
+    const notification = docToNotification(item);
+    if (notification && (!notification.targetRole || notification.targetRole === 'all' || notification.targetRole === user.role)) {
+      byId.set(notification.id, notification);
+    }
+  }));
+  return Array.from(byId.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function setNotification(

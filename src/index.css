@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
 
 @layer base {
   *, ::before, ::after {
@@ -91,4 +91,85 @@
   animation: spin 10s linear infinite;
 }
 
+/* Mobile layout safeguards. Desktop utilities remain unchanged. */
+@media (max-width: 639px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
 
+  body {
+    overscroll-behavior-y: none;
+  }
+
+  main {
+    width: 100%;
+    min-width: 0;
+  }
+
+  main > div,
+  main section,
+  main article,
+  main form {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  main input,
+  main select,
+  main textarea {
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  main button,
+  [role='dialog'] button {
+    touch-action: manipulation;
+  }
+
+  main table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  main table td,
+  main table th {
+    white-space: normal;
+    vertical-align: middle;
+  }
+
+  main h1,
+  main h2,
+  main h3,
+  main h4 {
+    overflow-wrap: anywhere;
+  }
+
+  .fixed.inset-0 {
+    padding: 0.75rem;
+  }
+
+  .fixed.inset-0 > div {
+    max-width: 100%;
+    max-height: calc(100dvh - 1.5rem);
+  }
+
+  .fixed.top-4.right-4 {
+    left: 0.75rem;
+    right: 0.75rem;
+    top: 0.75rem;
+    width: auto;
+    max-width: none;
+  }
+
+}
+
+@media (max-width: 374px) {
+  #mobile-bottom-nav span {
+    font-size: 9px;
+  }
+
+}

@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, limit, query, runTransaction, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, limit, query, runTransaction, serverTimestamp, setDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { ActivityPointRecord } from '../types';
 
@@ -37,13 +37,29 @@ export async function loadGardenSpinHistory(classId: string): Promise<GardenSpin
     .sort((a, b) => b.date.localeCompare(a.date));
 }
 
+export async function loadGardenSpinUsage(classId: string, week: number): Promise<Record<string, number>> {
+  if (!classId || week < 1 || week > 52) return {};
+  const snapshot = await getDocs(query(
+    collection(db, 'gardenSpinUsage'),
+    where('classId', '==', classId),
+    where('week', '==', week),
+    limit(450),
+  ));
+  const counts: Record<string, number> = {};
+  snapshot.docs.forEach(item => {
+    const data = item.data();
+    if (typeof data.studentId === 'string') counts[data.studentId] = Number(data.count || 0);
+  });
+  return counts;
+}
+
 export async function saveGardenSpin(
   history: GardenSpinHistory,
   point: ActivityPointRecord,
   maxSpins: number,
 ): Promise<number> {
   if (!history.classId || history.id !== point.id || history.studentId !== point.userId || point.source !== 'garden') throw new Error('Dữ liệu lượt quay không hợp lệ.');
-  if (history.points !== point.points || maxSpins < 1 || point.points < 0.01 || point.points > 10) throw new Error('Điểm quay thưởng không hợp lệ.');
+  if (history.points !== point.points || maxSpins < 1 || point.points < 0.01 || point.points > 20) throw new Error('Điểm quay thưởng không hợp lệ.');
   const usageId = `${history.classId}_${history.week || 0}_${history.studentId}`;
   return runTransaction(db, async transaction => {
     const usageRef = doc(db, 'gardenSpinUsage', usageId);
@@ -56,4 +72,16 @@ export async function saveGardenSpin(
     transaction.set(doc(db, 'activityPoints', point.id), { ...point, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
     return nextCount;
   });
+}
+
+export async function resetGardenSpinUsage(classId: string, week: number, studentId?: string): Promise<void> {
+  if (!classId || week < 1 || week > 52) throw new Error('Tuần quay thưởng không hợp lệ.');
+  if (studentId) {
+    await deleteDoc(doc(db, 'gardenSpinUsage', `${classId}_${week}_${studentId}`));
+    return;
+  }
+  const snapshot = await getDocs(query(collection(db, 'gardenSpinUsage'), where('classId', '==', classId), where('week', '==', week), limit(450)));
+  const batch = writeBatch(db);
+  snapshot.docs.forEach(item => batch.delete(item.ref));
+  await batch.commit();
 }

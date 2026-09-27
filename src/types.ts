@@ -5,6 +5,7 @@ export type MainTabType =
   | 'training_competition'
   | 'learning_competition'
   | 'activities'
+  | 'online_tests'
   | 'utilities';
 
 export type StudentPosition = 
@@ -14,6 +15,7 @@ export type StudentPosition =
   | 'lớp phó lao động' 
   | 'tổ trưởng' 
   | 'thủ quỹ'
+  | 'cờ đỏ'
   | string;
 
 export interface User {
@@ -39,6 +41,7 @@ export interface User {
   notes?: string;
   avatar?: string;
   avatarId?: string;
+  mustChangePassword?: boolean;
 }
 
 export interface ClassItem {

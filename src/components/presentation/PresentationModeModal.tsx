@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { PptxViewer, RECOMMENDED_ZIP_LIMITS } from '@aiden0z/pptx-renderer';
 import { PresentationItem } from '../../types';
 import { soundFx } from '../../utils/sound';
 import {
@@ -19,15 +20,17 @@ interface PresentationModeModalProps {
   onClose: () => void;
   onUpdateLastViewed?: (slideIndex: number) => void;
   onDownloadOriginal?: (presentation: PresentationItem) => void;
+  loadOriginalFile?: () => Promise<Blob | File | null>;
 }
 
 export const PresentationModeModal: React.FC<PresentationModeModalProps> = ({
   presentation,
   onClose,
   onUpdateLastViewed,
-  onDownloadOriginal
+  onDownloadOriginal,
+  loadOriginalFile
 }) => {
-  const totalSlides = presentation.slideImages?.length || presentation.slideCount || 1;
+  const [totalSlides, setTotalSlides] = useState(presentation.slideCount || presentation.slideImages?.length || 1);
   const [currentSlide, setCurrentSlide] = useState<number>(1);
   const [showPromptResume, setShowPromptResume] = useState<boolean>(
     presentation.lastViewedSlide > 1 && presentation.lastViewedSlide <= totalSlides
@@ -35,6 +38,51 @@ export const PresentationModeModal: React.FC<PresentationModeModalProps> = ({
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showControls, setShowControls] = useState<boolean>(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const viewerContainerRef = useRef<HTMLDivElement | null>(null);
+  const viewerRef = useRef<PptxViewer | null>(null);
+  const [viewerStatus, setViewerStatus] = useState<'loading' | 'ready' | 'fallback'>('loading');
+  const [viewerError, setViewerError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    const container = viewerContainerRef.current;
+    if (!container || !loadOriginalFile) {
+      setViewerStatus('fallback');
+      return;
+    }
+    setViewerStatus('loading');
+    setViewerError('');
+    loadOriginalFile().then(async blob => {
+      if (cancelled || !blob) {
+        if (!cancelled) setViewerStatus('fallback');
+        return;
+      }
+      const viewer = await PptxViewer.open(await blob.arrayBuffer(), container, {
+        renderMode: 'slide',
+        fitMode: 'contain',
+        zipLimits: RECOMMENDED_ZIP_LIMITS,
+        pdfjs: false,
+      });
+      if (cancelled) {
+        viewer.destroy();
+        return;
+      }
+      viewerRef.current = viewer;
+      setTotalSlides(Math.max(1, viewer.slideCount));
+      setViewerStatus('ready');
+    }).catch(error => {
+      if (cancelled) return;
+      console.error('PowerPoint renderer failed:', error);
+      setViewerError('Không thể dựng nguyên bản PowerPoint. Đang dùng bản xem trước đơn giản.');
+      setViewerStatus('fallback');
+    });
+    return () => {
+      cancelled = true;
+      viewerRef.current?.destroy();
+      viewerRef.current = null;
+      container.replaceChildren();
+    };
+  }, [loadOriginalFile, presentation.id]);
 
   // Sync keyboard shortcuts
   useEffect(() => {
@@ -111,6 +159,7 @@ export const PresentationModeModal: React.FC<PresentationModeModalProps> = ({
       soundFx.playClick();
       const next = currentSlide + 1;
       setCurrentSlide(next);
+      viewerRef.current?.goToSlide(next - 1).catch(error => console.error('Cannot open next PowerPoint slide:', error));
       if (onUpdateLastViewed) onUpdateLastViewed(next);
     }
   };
@@ -120,6 +169,7 @@ export const PresentationModeModal: React.FC<PresentationModeModalProps> = ({
       soundFx.playClick();
       const prev = currentSlide - 1;
       setCurrentSlide(prev);
+      viewerRef.current?.goToSlide(prev - 1).catch(error => console.error('Cannot open previous PowerPoint slide:', error));
       if (onUpdateLastViewed) onUpdateLastViewed(prev);
     }
   };
@@ -172,6 +222,7 @@ export const PresentationModeModal: React.FC<PresentationModeModalProps> = ({
                 onClick={() => {
                   soundFx.playClick();
                   setCurrentSlide(presentation.lastViewedSlide);
+                  viewerRef.current?.goToSlide(presentation.lastViewedSlide - 1).catch(error => console.error('Cannot resume PowerPoint slide:', error));
                   setShowPromptResume(false);
                 }}
                 className="w-full py-3 px-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-xs rounded-2xl shadow-md hover:brightness-105 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
@@ -185,6 +236,7 @@ export const PresentationModeModal: React.FC<PresentationModeModalProps> = ({
                 onClick={() => {
                   soundFx.playClick();
                   setCurrentSlide(1);
+                  viewerRef.current?.goToSlide(0).catch(error => console.error('Cannot restart PowerPoint:', error));
                   setShowPromptResume(false);
                 }}
                 className="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-2xl border border-slate-300 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
@@ -252,19 +304,24 @@ export const PresentationModeModal: React.FC<PresentationModeModalProps> = ({
         onClick={handleSlideClick}
         className="flex-1 flex items-center justify-center p-2 sm:p-6 cursor-pointer relative w-full h-full overflow-hidden"
       >
-        {activeSlideImage ? (
+        <div ref={viewerContainerRef} className={`w-full h-full flex items-center justify-center overflow-hidden ${viewerStatus === 'ready' ? 'block' : 'hidden'}`} />
+        {viewerStatus === 'loading' ? (
+          <div className="text-white text-sm font-bold">Đang dựng nguyên bản PowerPoint...</div>
+        ) : viewerStatus === 'fallback' && activeSlideImage ? (
           <img
             src={activeSlideImage}
             alt={`Slide ${currentSlide}`}
             className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl transition-all duration-200 border border-slate-800"
           />
-        ) : (
+        ) : viewerStatus === 'fallback' ? (
           <div className="w-[1280px] h-[720px] max-w-full max-h-full bg-slate-900 border-2 border-dashed border-slate-700 rounded-3xl flex flex-col items-center justify-center text-slate-400 p-8 text-center space-y-3">
             <FileText className="w-16 h-16 text-slate-500" />
             <div className="text-xl font-black text-slate-200">Slide #{currentSlide}</div>
             <p className="text-xs text-slate-400">Đang chuẩn bị hiển thị nội dung slide...</p>
           </div>
-        )}
+        ) : null}
+
+        {viewerError && <div className="absolute top-20 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-bold shadow-lg">{viewerError}</div>}
 
         {/* Hover Click Indicators */}
         <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-0 hover:opacity-100 transition-opacity bg-black/40 text-white p-3 rounded-full border border-white/20 pointer-events-none">

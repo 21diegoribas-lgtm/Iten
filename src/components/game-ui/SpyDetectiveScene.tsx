@@ -607,7 +607,7 @@ export const SpyDetectiveScene: React.FC<SpyDetectiveSceneProps> = ({
                           <p className="font-black text-white text-xs truncate">{st.fullName}</p>
                           <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mt-0.5">
                             <span className="px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-semibold">
-                              {st.team || 'Lớp 8A1'}
+                              {st.team || 'Chưa xếp tổ'}
                             </span>
                             <span>•</span>
                             <span className="text-amber-300 font-bold">{totalSuspectVotes} phiếu</span>

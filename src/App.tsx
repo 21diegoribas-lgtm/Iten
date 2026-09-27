@@ -6,60 +6,75 @@
 
 
 import { auth } from './lib/firebase';
-import { getClasses } from './services/classService';
+import { getClassById, getClasses } from './services/classService';
 import { updateClass, setClass, deleteClass } from './services/classService';
-import { setNotification } from './services/notificationService';
+import { getNotificationsForUser, setNotification } from './services/notificationService';
 import React, { useEffect, useState } from 'react';
-import { getStudents, getStudentById } from './services/studentService';
-import { User, MainTabType, NotificationItem, TimetableEntry, CleaningSchedule, DisciplineRecord, LearningRecord, Complaint, AccountRequest, AttendanceRecord, SpyGameMission, FlowerGameConfig, RacingGameConfig, KeyboardHeroTask, MemoryCardGameConfig, PersonalStorageItem, TeacherWorkSchedule, TeacherWeeklyTimetable, ClassFundItem, ClassFundExpense, ClassLogbookWeek, PointUsageTransaction, ActivityPointRecord } from './types';
-import {
-  DEMO_USERS,
-  DEMO_NOTIFICATIONS,
-  DEMO_TIMETABLE,
-  DEMO_TIMETABLES,
-  DEMO_TEACHER_SCHEDULES,
-  DEMO_TEACHER_WEEKLY_TIMETABLES,
-  DEMO_CLEANING,
-  DEMO_DISCIPLINE_RECORDS,
-  DEMO_LEARNING_RECORDS,
-  DEMO_COMPLAINTS,
-  DEMO_ACCOUNT_REQUESTS,
-  DEMO_ATTENDANCE,
-  DEMO_SPY_MISSION,
-  DEMO_RACING_CONFIG,
-  DEMO_KEYBOARD_TASK,
-  DEMO_MEMORY_CONFIG,
-  DEMO_STORAGE_ITEMS,
-  DEMO_CLASSES,
-  DEMO_CLASS_FUNDS,
-  DEMO_CLASS_EXPENSES,
-  DEMO_CLASS_LOGBOOKS,
-  DEMO_POINT_USAGE_TRANSACTIONS
-} from './mockData';
+import { getStudents, getStudentsByClass } from './services/studentService';
+import { User, MainTabType, NotificationItem, TimetableEntry, CleaningSchedule, DisciplineRecord, LearningRecord, Complaint, AccountRequest, AttendanceRecord, SpyGameMission, FlowerGameConfig, RacingGameConfig, KeyboardHeroTask, MemoryCardGameConfig, PersonalStorageItem, TeacherWorkSchedule, TeacherWeeklyTimetable, ClassFundItem, ClassFundExpense, ClassLogbookWeek, PointUsageTransaction, ActivityPointRecord, ClassItem } from './types';
 import { Sidebar } from './components/Sidebar';
 import { MobileNav } from './components/MobileNav';
 import { Header } from './components/Header';
 import { LoginModal } from './components/LoginModal';
+import { FirstLoginPasswordModal } from './components/FirstLoginPasswordModal';
 import { DashboardTab } from './components/tabs/DashboardTab';
 import { TrainingCompetitionTab } from './components/tabs/TrainingCompetitionTab';
 import { LearningCompetitionTab } from './components/tabs/LearningCompetitionTab';
 import { ActivitiesTab } from './components/tabs/ActivitiesTab';
 import { UtilitiesTab } from './components/tabs/UtilitiesTab';
+import { OnlineTestsTab } from './components/tabs/OnlineTestsTab';
 import { AvatarSelectionModal } from './components/game-ui/AvatarSelectionModal';
 import { getAvatarById } from './utils/avatarHelper';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { getUserById, updateUser } from './services/userService';
+import { getUserById, getUsers, updateUser } from './services/userService';
 import { createEmptyFlowerGameConfig, getFlowerGameConfig, saveFlowerGameConfig } from './services/flowerGameService';
 import { getRacingGameConfig, saveRacingGameConfig } from './services/racingGameService';
 import { getMemoryGameConfig, saveMemoryGameConfig } from './services/memoryGameService';
 import { appendKeyboardComment, getKeyboardTask, gradeKeyboardSubmissionAndAward, saveKeyboardSubmission, saveKeyboardTaskConfig, setKeyboardSubmissionLike } from './services/keyboardTaskService';
 import { castSpyVote, clearAllSpyVotes, finishSpyMissionAndAward, getSpyMission, resetSpyVotes, saveSpyMission } from './services/spyGameService';
 import { awardAttendancePoints, loadAttendanceRecords, saveAttendanceRecords } from './services/attendanceService';
-import { activityPointToDisciplineRecord, activityPointToLearningRecord, loadActivityPointsForUser } from './services/activityPointService';
+import { activityPointToDisciplineRecord, activityPointToLearningRecord, loadActivityPointsForClass, loadActivityPointsForUser } from './services/activityPointService';
+import { createEmptyCleaningSchedule, getCleaningSchedule, saveCleaningSchedule } from './services/cleaningScheduleService';
+import { deleteAppDocument, loadAppCollection, saveAppDocument, type AppCollectionName } from './services/appDataService';
+
+const emptyTimetable = (classId = ''): TimetableEntry => ({
+  id: classId ? `timetable_${classId}` : '', classId, semester: 'Học kỳ 1', weekNumber: 1, startDate: '', schedule: [],
+});
+const emptySpyMission = (classId = ''): SpyGameMission => ({
+  id: classId ? `spy_${classId}` : '', classId, weekNumber: 1, spyStudentId: '', missionDescription: '',
+  status: 'Chưa kích hoạt', votes: [], rewardSpy: 5, penaltySpy: 5, rewardCitizenPerVote: 1,
+});
+const emptyRacingConfig = (classId = ''): RacingGameConfig => ({
+  id: classId ? `racing_${classId}` : '', title: 'Đường đua học tập', classId, category: 'Điểm HĐ học tập',
+  trackLength: 1000, timeMinutes: 5, mode: 'tổ', playMode: 'all_teams', trackCount: 4,
+  teams: [], vehicles: [], questions: [], isActive: false,
+});
+const emptyKeyboardTask = (classId = ''): KeyboardHeroTask => ({
+  id: classId ? `keyboard_${classId}` : '', title: '', prompt: '', classId,
+  category: 'Điểm HĐ học tập', deadline: '', submissions: [],
+});
+const emptyMemoryConfig = (classId = ''): MemoryCardGameConfig => ({
+  id: classId ? `memory_${classId}` : '', title: 'Thách thức thẻ nhớ', classId,
+  category: 'Điểm HĐ học tập', timeMinutes: 5, pairs: [], isActive: false,
+});
+const persistCollectionChanges = async <T extends { id: string }>(name: AppCollectionName, previous: T[], next: T[]) => {
+  const nextIds = new Set(next.map(item => item.id));
+  await Promise.all([
+    ...next.map(item => saveAppDocument(name, item)),
+    ...previous.filter(item => !nextIds.has(item.id)).map(item => deleteAppDocument(name, item.id)),
+  ]);
+};
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 const [authLoading, setAuthLoading] = useState(true);
+  const [classesList, setClassesList] = useState<ClassItem[]>([]);
+  const [classesLoading, setClassesLoading] = useState(true);
+  const [classesLoadError, setClassesLoadError] = useState('');
+  const [classesReloadKey, setClassesReloadKey] = useState(0);
+  const [studentsLoading, setStudentsLoading] = useState(true);
+  const [studentsLoadError, setStudentsLoadError] = useState('');
+  const [studentsReloadKey, setStudentsReloadKey] = useState(0);
   const [activeTab, setActiveTab] = useState<MainTabType>('dashboard');
   const [showAvatarModal, setShowAvatarModal] = useState<boolean>(false);
   const isStudent = currentUser?.role === 'student';
@@ -74,8 +89,13 @@ const [authLoading, setAuthLoading] = useState(true);
 
   const managedClass = classesList.find(c => c.id === classId);
 
-  return managedClass?.homeroomTeacher === currentUser.fullName;
+  return currentUser.classId === classId || managedClass?.homeroomTeacher === currentUser.fullName;
 };
+  const learningRecordForCurrentTeacher = (record: LearningRecord): LearningRecord | null => {
+    if (currentUser?.role === 'admin') return record;
+    if (currentUser?.role !== 'teacher' || !currentUser.subject?.trim()) return null;
+    return { ...record, categoryType: 'subject', subjectName: currentUser.subject.trim() };
+  };
 useEffect(() => {
   const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
     if (!firebaseUser) {
@@ -84,6 +104,8 @@ useEffect(() => {
       return;
     }
 
+    setClassesLoading(true);
+    setStudentsLoading(true);
     try {
       const user = await getUserById(firebaseUser.uid);
 console.log('[AUTH USER CLASS]', {
@@ -111,34 +133,90 @@ console.log('[AUTH USER CLASS]', {
   return unsubscribe;
 }, []);
 useEffect(() => {
+  if (!currentUser) {
+    setClassesList([]);
+    setClassesLoadError('');
+    setClassesLoading(false);
+    return;
+  }
+  let cancelled = false;
   const loadClasses = async () => {
+    setClassesList([]);
+    setClassesLoadError('');
+    setClassesLoading(true);
     try {
-      const firestoreClasses = await getClasses();
-console.log(
-  '[CLASS 9A3]',
-  firestoreClasses.find(c => c.name === 'Lớp 9a3')
-);
-
-      if (firestoreClasses.length > 0) {
-        setClassesList(firestoreClasses);
+      if (currentUser.role === 'student' && !currentUser.classId) {
+        throw new Error('Tài khoản học sinh chưa được gán lớp học.');
       }
+      const firestoreClasses = currentUser.role === 'student'
+        ? [await getClassById(currentUser.classId as string)].filter((item): item is ClassItem => item !== null)
+        : await getClasses();
+      if (!cancelled) setClassesList(firestoreClasses);
     } catch (error) {
       console.error('[Load Classes Error]', error);
+      if (!cancelled) setClassesLoadError(error instanceof Error && error.message.includes('chưa được gán lớp')
+        ? error.message
+        : 'Không tải được lớp học từ Firestore.');
+    } finally {
+      if (!cancelled) setClassesLoading(false);
     }
   };
 
   loadClasses();
-}, []);
+  return () => { cancelled = true; };
+}, [currentUser?.id, classesReloadKey]);
 
-  // Application states initialized with demo data
-  const [notifications, setNotifications] = useState<NotificationItem[]>(DEMO_NOTIFICATIONS);
-  const [timetable, setTimetable] = useState<TimetableEntry>(DEMO_TIMETABLE);
-  const [timetables, setTimetables] = useState<TimetableEntry[]>(DEMO_TIMETABLES);
-  const [teacherSchedules, setTeacherSchedules] = useState<TeacherWorkSchedule[]>(DEMO_TEACHER_SCHEDULES);
-  const [teacherWeeklyTimetables, setTeacherWeeklyTimetables] = useState<TeacherWeeklyTimetable[]>(DEMO_TEACHER_WEEKLY_TIMETABLES);
-  const [cleaning, setCleaning] = useState<CleaningSchedule>(DEMO_CLEANING);
-  const [disciplineRecords, setDisciplineRecords] = useState<DisciplineRecord[]>(DEMO_DISCIPLINE_RECORDS);
-  const [learningRecords, setLearningRecords] = useState<LearningRecord[]>(DEMO_LEARNING_RECORDS);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [timetable, setTimetable] = useState<TimetableEntry>(() => emptyTimetable());
+  const [timetables, setTimetables] = useState<TimetableEntry[]>([]);
+  const [teacherSchedules, setTeacherSchedules] = useState<TeacherWorkSchedule[]>([]);
+  const [teacherWeeklyTimetables, setTeacherWeeklyTimetables] = useState<TeacherWeeklyTimetable[]>([]);
+  useEffect(() => {
+    if (!currentUser) {
+      setNotifications([]);
+      return;
+    }
+    let cancelled = false;
+    setNotifications([]);
+    getNotificationsForUser(currentUser)
+      .then(items => { if (!cancelled) setNotifications(items); })
+      .catch(error => {
+        console.error('[Load Notifications Error]', error);
+        if (!cancelled) setNotifications([]);
+      });
+    return () => { cancelled = true; };
+  }, [currentUser?.id, currentUser?.role, currentUser?.classId]);
+  const [cleaning, setCleaning] = useState<CleaningSchedule>(() => createEmptyCleaningSchedule(''));
+  const [cleaningLoading, setCleaningLoading] = useState(false);
+  const [cleaningLoadError, setCleaningLoadError] = useState('');
+
+  useEffect(() => {
+    const classId = currentUser?.classId || '';
+    setCleaning(createEmptyCleaningSchedule(classId));
+    setCleaningLoadError('');
+    if (!classId) {
+      setCleaningLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setCleaningLoading(true);
+    getCleaningSchedule(classId)
+      .then(schedule => {
+        if (!cancelled) setCleaning(schedule || createEmptyCleaningSchedule(classId));
+      })
+      .catch(error => {
+        console.error('[Load Cleaning Schedule Error]', error);
+        if (!cancelled) setCleaningLoadError('Không tải được lịch vệ sinh từ Firestore.');
+      })
+      .finally(() => {
+        if (!cancelled) setCleaningLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [currentUser?.id, currentUser?.classId]);
+  const [disciplineRecords, setDisciplineRecords] = useState<DisciplineRecord[]>([]);
+  const [learningRecords, setLearningRecords] = useState<LearningRecord[]>([]);
 
   const mergeActivityPoint = (point: ActivityPointRecord) => {
     if (point.pointType === 'academic_activity') {
@@ -151,71 +229,79 @@ console.log(
   };
 
   useEffect(() => {
-    if (!currentUser || currentUser.role !== 'student') return;
+    if (!currentUser) {
+      setLearningRecords([]);
+      setDisciplineRecords([]);
+      return;
+    }
     let cancelled = false;
-    loadActivityPointsForUser(currentUser.id)
+    setLearningRecords([]);
+    setDisciplineRecords([]);
+    const request = currentUser.role === 'student'
+      ? loadActivityPointsForUser(currentUser.id)
+      : loadActivityPointsForClass(currentUser.classId || '');
+    request
       .then(points => {
         if (cancelled) return;
         const academic = points.filter(point => point.pointType === 'academic_activity').map(activityPointToLearningRecord);
         const training = points.filter(point => point.pointType === 'training_activity').map(activityPointToDisciplineRecord);
-        setLearningRecords(prev => [...academic, ...prev.filter(item => !academic.some(saved => saved.id === item.id))]);
-        setDisciplineRecords(prev => [...training, ...prev.filter(item => !training.some(saved => saved.id === item.id))]);
+        setLearningRecords(academic);
+        setDisciplineRecords(training);
       })
       .catch(error => console.error('[Load Activity Points Error]', error));
     return () => { cancelled = true; };
+  }, [currentUser?.id, currentUser?.role, currentUser?.classId]);
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [accountRequests, setAccountRequests] = useState<AccountRequest[]>([]);
+  const [students, setStudents] = useState<User[]>([]);
+  useEffect(() => {
+    if (!currentUser) {
+      setStudents([]);
+      setStudentsLoadError('');
+      setStudentsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setStudents([]);
+    setStudentsLoadError('');
+    setStudentsLoading(true);
+    const request = currentUser.role === 'student'
+      ? getStudentsByClass(currentUser.classId || '')
+      : getStudents();
+    request
+      .then(items => { if (!cancelled) setStudents(items as User[]); })
+      .catch(error => {
+        console.error('[Students] Lỗi tải Firestore:', error);
+        if (!cancelled) setStudentsLoadError('Không tải được danh sách học sinh từ Firestore.');
+      })
+      .finally(() => { if (!cancelled) setStudentsLoading(false); });
+    return () => { cancelled = true; };
+  }, [currentUser?.id, currentUser?.classId, currentUser?.role, studentsReloadKey]);
+
+
+
+  const [teachers, setTeachers] = useState<User[]>([]);
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      setTeachers([]);
+      return;
+    }
+
+    let cancelled = false;
+    setTeachers([]);
+    getUsers()
+      .then(users => {
+        if (!cancelled) setTeachers(users.filter(user => user.role === 'teacher'));
+      })
+      .catch(error => {
+        console.error('[Load Teachers Error]', error);
+        if (!cancelled) setTeachers([]);
+      });
+
+    return () => { cancelled = true; };
   }, [currentUser?.id, currentUser?.role]);
-  const [complaints, setComplaints] = useState<Complaint[]>(DEMO_COMPLAINTS);
-  const [accountRequests, setAccountRequests] = useState<AccountRequest[]>(DEMO_ACCOUNT_REQUESTS);
-  const [students, setStudents] = useState<User[]>(DEMO_USERS.filter(u => u.role === 'student'));
-	useEffect(() => {
-  const loadStudents = async () => {
-    try {
-      const firestoreStudents = await getStudents();
-
-      console.log('[Students] Firestore result:', firestoreStudents);
-      console.log('[Students] Firestore count:', firestoreStudents.length);
-
-      setStudents(firestoreStudents as User[]);
-    } catch (error) {
-      console.error('[Students] Lỗi tải Firestore:', error);
-    }
-
-    try {
-      const testStudent = await getStudentById(
-        '9e5Sp3kRuURU1q4RQyP9DCMiOnt2'
-      );
-
-      console.log('[Auth] current UID:', auth.currentUser?.uid);
-      console.log('[Auth] current email:', auth.currentUser?.email);
-
-console.log('[CURRENT USER]', currentUser);
-
-      console.log('[Students] Direct test:', testStudent);
-    } catch (error) {
-      console.error('[Students] Direct test ERROR:', error);
-    }
-  };
-
-  loadStudents();
-}, []);
-
-
-
 useEffect(() => {
-  console.log('[STUDENTS STATE]', {
-    count: students.length,
-    students,
-    currentUserClassId: currentUser?.classId,
-    currentUserClassName: currentUser?.className,
-  });
-}, [students, currentUser]);
-
-
-
-  const [teachers, setTeachers] = useState<User[]>(DEMO_USERS.filter(u => u.role === 'teacher'));
-  const [classesList, setClassesList] = useState<any[]>(DEMO_CLASSES);
-useEffect(() => {
-  if (!currentUser || currentUser.role !== 'teacher') return;
+  if (!currentUser || currentUser.role !== 'teacher' || classesLoading) return;
 
   const teacherClass = classesList.find(
     cls => cls.homeroomTeacher === currentUser.fullName
@@ -239,22 +325,23 @@ useEffect(() => {
         }
       : prev
   );
-}, [classesList, currentUser]);
+}, [classesList, classesLoading, currentUser]);
 
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(DEMO_ATTENDANCE);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   useEffect(() => {
     const classId = currentUser?.classId;
+    setAttendanceRecords([]);
     if (!classId) return;
     let cancelled = false;
     loadAttendanceRecords(classId).then(records => { if (!cancelled) setAttendanceRecords(records); })
       .catch(error => console.error('[Load Attendance Error]', error));
     return () => { cancelled = true; };
   }, [currentUser?.classId, currentUser?.id]);
-  const [spyMission, setSpyMission] = useState<SpyGameMission>(DEMO_SPY_MISSION);
+  const [spyMission, setSpyMission] = useState<SpyGameMission>(() => emptySpyMission());
   useEffect(() => {
     const classId = currentUser?.classId;
+    setSpyMission(emptySpyMission(classId || ''));
     if (!classId) return;
-    setSpyMission({ ...DEMO_SPY_MISSION, id: `spy_${classId}`, classId, status: 'Chưa kích hoạt', votes: [], summaryResult: undefined });
     let cancelled = false;
     getSpyMission(classId).then(mission => { if (!cancelled && mission) setSpyMission(mission); })
       .catch(error => console.error('[Load Spy Mission Error]', error));
@@ -283,58 +370,93 @@ useEffect(() => {
       cancelled = true;
     };
   }, [currentUser?.classId, currentUser?.id]);
-  const [racingConfig, setRacingConfig] = useState<RacingGameConfig>(DEMO_RACING_CONFIG);
+  const [racingConfig, setRacingConfig] = useState<RacingGameConfig>(() => emptyRacingConfig());
   useEffect(() => {
     const classId = currentUser?.classId;
+    setRacingConfig(emptyRacingConfig(classId || ''));
     if (!classId) return;
-    setRacingConfig({
-      ...DEMO_RACING_CONFIG,
-      id: `racing_${classId}`,
-      classId,
-      isActive: false,
-      teams: DEMO_RACING_CONFIG.teams.map(team => ({ ...team, currentDistance: 0 })),
-    });
     let cancelled = false;
     getRacingGameConfig(classId)
       .then(config => { if (!cancelled && config) setRacingConfig(config); })
       .catch(error => console.error('[Load Racing Game Config Error]', error));
     return () => { cancelled = true; };
   }, [currentUser?.classId, currentUser?.id]);
-  const [keyboardTask, setKeyboardTask] = useState<KeyboardHeroTask>(DEMO_KEYBOARD_TASK);
+  const [keyboardTask, setKeyboardTask] = useState<KeyboardHeroTask>(() => emptyKeyboardTask());
   useEffect(() => {
     const classId = currentUser?.classId;
+    setKeyboardTask(emptyKeyboardTask(classId || ''));
     if (!classId) return;
-    setKeyboardTask({ ...DEMO_KEYBOARD_TASK, id: `keyboard_${classId}`, classId, submissions: [] });
     let cancelled = false;
     getKeyboardTask(classId)
       .then(task => { if (!cancelled && task) setKeyboardTask(task); })
       .catch(error => console.error('[Load Keyboard Task Error]', error));
     return () => { cancelled = true; };
   }, [currentUser?.classId, currentUser?.id]);
-  const [memoryConfig, setMemoryConfig] = useState<MemoryCardGameConfig>(DEMO_MEMORY_CONFIG);
+  const [memoryConfig, setMemoryConfig] = useState<MemoryCardGameConfig>(() => emptyMemoryConfig());
   useEffect(() => {
     const classId = currentUser?.classId;
+    setMemoryConfig(emptyMemoryConfig(classId || ''));
     if (!classId) return;
-    setMemoryConfig({ ...DEMO_MEMORY_CONFIG, id: `memory_${classId}`, classId, isActive: false });
     let cancelled = false;
     getMemoryGameConfig(classId)
       .then(config => { if (!cancelled && config) setMemoryConfig(config); })
       .catch(error => console.error('[Load Memory Game Config Error]', error));
     return () => { cancelled = true; };
   }, [currentUser?.classId, currentUser?.id]);
-  const [storageItems, setStorageItems] = useState<PersonalStorageItem[]>(DEMO_STORAGE_ITEMS);
-  const [classFunds, setClassFunds] = useState<ClassFundItem[]>(DEMO_CLASS_FUNDS);
-  const [classExpenses, setClassExpenses] = useState<ClassFundExpense[]>(DEMO_CLASS_EXPENSES);
-  const [logbooks, setLogbooks] = useState<ClassLogbookWeek[]>(DEMO_CLASS_LOGBOOKS);
-  const [pointUsageTransactions, setPointUsageTransactions] = useState<PointUsageTransaction[]>(() => {
-    try {
-      const saved = localStorage.getItem('iten_point_usage_transactions');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error(e);
+  const [storageItems, setStorageItems] = useState<PersonalStorageItem[]>([]);
+  const [classFunds, setClassFunds] = useState<ClassFundItem[]>([]);
+  const [classExpenses, setClassExpenses] = useState<ClassFundExpense[]>([]);
+  const [logbooks, setLogbooks] = useState<ClassLogbookWeek[]>([]);
+  const [pointUsageTransactions, setPointUsageTransactions] = useState<PointUsageTransaction[]>([]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setTimetable(emptyTimetable()); setTimetables([]); setTeacherSchedules([]); setTeacherWeeklyTimetables([]);
+      setComplaints([]); setAccountRequests([]); setStorageItems([]); setClassFunds([]); setClassExpenses([]);
+      setLogbooks([]); setPointUsageTransactions([]);
+      return;
     }
-    return DEMO_POINT_USAGE_TRANSACTIONS;
-  });
+
+    let cancelled = false;
+    const isCurrentAdmin = currentUser.role === 'admin';
+    const classId = currentUser.classId || '';
+    const className = currentUser.className || '';
+    const scoped = <T,>(name: AppCollectionName, field: string, value: string) =>
+      isCurrentAdmin ? loadAppCollection<T>(name) : (value ? loadAppCollection<T>(name, field, value) : Promise.resolve([]));
+
+    Promise.all([
+      scoped<TimetableEntry>('timetables', 'classId', classId),
+      isCurrentAdmin ? loadAppCollection<TeacherWorkSchedule>('teacherSchedules') : loadAppCollection<TeacherWorkSchedule>('teacherSchedules', 'teacherId', currentUser.id),
+      isCurrentAdmin ? loadAppCollection<TeacherWeeklyTimetable>('teacherWeeklyTimetables') : loadAppCollection<TeacherWeeklyTimetable>('teacherWeeklyTimetables', 'teacherId', currentUser.id),
+      currentUser.role === 'student'
+        ? loadAppCollection<Complaint>('complaints', 'studentId', currentUser.id)
+        : scoped<Complaint>('complaints', 'className', className),
+      isCurrentAdmin ? loadAppCollection<AccountRequest>('accountRequests') : loadAppCollection<AccountRequest>('accountRequests', 'userId', currentUser.id),
+      loadAppCollection<PersonalStorageItem>('personalStorageItems', 'userId', currentUser.id),
+      scoped<ClassFundItem>('classFunds', 'classId', classId),
+      scoped<ClassFundExpense>('classExpenses', 'classId', classId),
+      scoped<ClassLogbookWeek>('classLogbooks', 'classId', classId),
+      currentUser.role === 'student'
+        ? loadAppCollection<PointUsageTransaction>('pointUsageTransactions', 'studentId', currentUser.id)
+        : scoped<PointUsageTransaction>('pointUsageTransactions', 'className', className),
+    ]).then(([loadedTimetables, schedules, weekly, loadedComplaints, requests, storage, funds, expenses, books, usages]) => {
+      if (cancelled) return;
+      setTimetables(loadedTimetables);
+      setTimetable(loadedTimetables[0] || emptyTimetable(classId));
+      setTeacherSchedules(schedules); setTeacherWeeklyTimetables(weekly); setComplaints(loadedComplaints);
+      setAccountRequests(requests); setStorageItems(storage); setClassFunds(funds); setClassExpenses(expenses);
+      setLogbooks(books); setPointUsageTransactions(usages);
+    }).catch(error => {
+      console.error('[Load Firestore App Data Error]', error);
+      if (!cancelled) {
+        setTimetable(emptyTimetable(classId)); setTimetables([]); setTeacherSchedules([]); setTeacherWeeklyTimetables([]);
+        setComplaints([]); setAccountRequests([]); setStorageItems([]); setClassFunds([]); setClassExpenses([]);
+        setLogbooks([]); setPointUsageTransactions([]);
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [currentUser?.id, currentUser?.role, currentUser?.classId, currentUser?.className]);
 
   const handleAddPointUsageTransaction = (tx: PointUsageTransaction) => {
   if (!canManage) return;
@@ -347,20 +469,8 @@ useEffect(() => {
     }
   }
 
-  setPointUsageTransactions(prev => {
-    const next = [tx, ...prev];
-
-    try {
-      localStorage.setItem(
-        'iten_point_usage_transactions',
-        JSON.stringify(next)
-      );
-    } catch (e) {
-      console.error(e);
-    }
-
-    return next;
-  });
+  void saveAppDocument('pointUsageTransactions', tx).catch(error => console.error('[Save Point Usage Error]', error));
+  setPointUsageTransactions(prev => [tx, ...prev]);
 };
 
 const handleCancelPointUsageTransaction = (
@@ -394,19 +504,14 @@ const handleCancelPointUsageTransaction = (
         : t
     );
 
-    try {
-      localStorage.setItem(
-        'iten_point_usage_transactions',
-        JSON.stringify(next)
-      );
-    } catch (e) {
-      console.error(e);
-    }
-
+    const updated = next.find(item => item.id === id);
+    if (updated) void saveAppDocument('pointUsageTransactions', updated).catch(error => console.error('[Cancel Point Usage Error]', error));
     return next;
   });
 };
   const handleUserLogin = (user: User) => {
+    setClassesLoading(true);
+    setStudentsLoading(true);
     setCurrentUser(user);
     if (user.role === 'student' && !user.avatarId) {
       setShowAvatarModal(true);
@@ -418,6 +523,57 @@ if (authLoading) {
 }
   if (!currentUser) {
     return <LoginModal onLogin={user => handleUserLogin(user)} />;
+  }
+
+  if (currentUser.mustChangePassword) {
+    return (
+      <FirstLoginPasswordModal
+        user={currentUser}
+        onComplete={() => setCurrentUser(user => user ? { ...user, mustChangePassword: false } : user)}
+        onLogout={async () => {
+          await signOut(auth);
+          setCurrentUser(null);
+        }}
+      />
+    );
+  }
+
+  if (classesLoading || studentsLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-sky-50 to-emerald-50 flex items-center justify-center p-6">
+        <div className="bg-white rounded-3xl border border-sky-100 shadow-xl px-8 py-7 text-center max-w-sm w-full">
+          <div className="w-12 h-12 mx-auto rounded-full border-4 border-sky-100 border-t-sky-500 animate-spin" />
+          <p className="mt-4 font-black text-slate-800">Đang tải dữ liệu lớp từ hệ thống...</p>
+          <p className="mt-1 text-xs font-semibold text-slate-500">Dữ liệu mẫu sẽ không được hiển thị trong lúc chờ.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (classesLoadError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-amber-50 flex items-center justify-center p-6">
+        <div className="bg-white rounded-3xl border border-rose-200 shadow-xl px-8 py-7 text-center max-w-md w-full">
+          <p className="font-black text-rose-700">{classesLoadError}</p>
+          <p className="mt-2 text-xs font-semibold text-slate-500">Ứng dụng chưa hiển thị danh sách lớp để tránh dùng nhầm dữ liệu mẫu.</p>
+          <button type="button" onClick={() => setClassesReloadKey(value => value + 1)} className="mt-5 px-5 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-bold hover:bg-rose-700">
+            Thử tải lại
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (studentsLoadError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-amber-50 flex items-center justify-center p-6">
+        <div className="bg-white rounded-3xl border border-rose-200 shadow-xl px-8 py-7 text-center max-w-md w-full">
+          <p className="font-black text-rose-700">{studentsLoadError}</p>
+          <p className="mt-2 text-xs font-semibold text-slate-500">Danh sách mẫu không được hiển thị. Hãy thử tải lại dữ liệu thật.</p>
+          <button type="button" onClick={() => setStudentsReloadKey(value => value + 1)} className="mt-5 px-5 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-bold hover:bg-rose-700">Thử tải lại</button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -437,7 +593,7 @@ if (authLoading) {
       />
 
       <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
-        {/* Sidebar with exactly 5 main tabs */}
+        {/* Main navigation */}
         <div className="hidden lg:flex shrink-0">
           <Sidebar
             activeTab={activeTab}
@@ -465,6 +621,7 @@ if (authLoading) {
                 teacherWeeklyTimetables={teacherWeeklyTimetables}
                 onUpdateTeacherWeeklyTimetables={tts => {
   if (isAdmin) {
+    void persistCollectionChanges('teacherWeeklyTimetables', teacherWeeklyTimetables, tts).catch(console.error);
     setTeacherWeeklyTimetables(tts);
     return;
   }
@@ -477,6 +634,7 @@ if (authLoading) {
 
   if (!allowed) return;
 
+  void persistCollectionChanges('teacherWeeklyTimetables', teacherWeeklyTimetables, tts).catch(console.error);
   setTeacherWeeklyTimetables(tts);
 }}
                 classFunds={classFunds}
@@ -490,6 +648,7 @@ if (authLoading) {
 
   if (!allowed) return;
 
+  void persistCollectionChanges('classFunds', classFunds, funds).catch(console.error);
   setClassFunds(funds);
 }}
 
@@ -502,6 +661,7 @@ onUpdateClassExpenses={exps => {
 
   if (!allowed) return;
 
+  void persistCollectionChanges('classExpenses', classExpenses, exps).catch(console.error);
   setClassExpenses(exps);
 }}
                 logbooks={logbooks}
@@ -514,9 +674,12 @@ onUpdateClassExpenses={exps => {
 
   if (!allowed) return;
 
+  void persistCollectionChanges('classLogbooks', logbooks, lbs).catch(console.error);
   setLogbooks(lbs);
 }}
                 cleaning={cleaning}
+                cleaningLoading={cleaningLoading}
+                cleaningLoadError={cleaningLoadError}
                 students={
   currentUser?.role === 'admin'
     ? students
@@ -560,6 +723,7 @@ onUpdateClassExpenses={exps => {
                 onUpdateTimetable={tt => {
   if (!canManageClass(tt.classId)) return;
 
+  void saveAppDocument('timetables', tt).catch(error => console.error('[Save Timetable Error]', error));
   setTimetable(tt);
 
   setTimetables(prev =>
@@ -580,9 +744,11 @@ onUpdateTimetables={tts => {
 
   if (!allowed) return;
 
+  void persistCollectionChanges('timetables', timetables, tts).catch(console.error);
   setTimetables(tts);
 }}            onAddTeacherSchedule={ts => {
   if (isAdmin) {
+    void saveAppDocument('teacherSchedules', ts).catch(console.error);
     setTeacherSchedules(prev => [ts, ...prev]);
     return;
   }
@@ -590,11 +756,13 @@ onUpdateTimetables={tts => {
   if (currentUser?.role !== 'teacher') return;
   if (ts.teacherId !== currentUser.id) return;
 
+  void saveAppDocument('teacherSchedules', ts).catch(console.error);
   setTeacherSchedules(prev => [ts, ...prev]);
 }}
 
 onUpdateTeacherSchedule={ts => {
   if (isAdmin) {
+    void saveAppDocument('teacherSchedules', ts).catch(console.error);
     setTeacherSchedules(prev =>
       prev.map(t => t.id === ts.id ? ts : t)
     );
@@ -604,6 +772,7 @@ onUpdateTeacherSchedule={ts => {
   if (currentUser?.role !== 'teacher') return;
   if (ts.teacherId !== currentUser.id) return;
 
+  void saveAppDocument('teacherSchedules', ts).catch(console.error);
   setTeacherSchedules(prev =>
     prev.map(t => t.id === ts.id ? ts : t)
   );
@@ -617,12 +786,23 @@ onDeleteTeacherSchedule={id => {
 
   if (!isAdmin && target.teacherId !== currentUser?.id) return;
 
+  void deleteAppDocument('teacherSchedules', id).catch(console.error);
   setTeacherSchedules(prev =>
     prev.filter(item => item.id !== id)
   );
 }}
-                onUpdateCleaning={cl =>{ if (!canManageClass(cl.classId)) return; setCleaning(cl)}}
+                onUpdateCleaning={async cl => {
+                  const isOfficerOfClass = currentUser?.role === 'student' &&
+                    currentUser.position !== 'thành viên' && currentUser.classId === cl.classId;
+                  if (!canManageClass(cl.classId) && !isOfficerOfClass) {
+                    throw new Error('Bạn không có quyền cập nhật lịch vệ sinh của lớp này.');
+                  }
+                  await saveCleaningSchedule(cl);
+                  setCleaning(cl);
+                  setCleaningLoadError('');
+                }}
                 onAddAccountRequest={req => {
+  void saveAppDocument('accountRequests', req).catch(console.error);
   setAccountRequests(prev => [req, ...prev]);
 }}
 
@@ -640,6 +820,8 @@ onResolveRequest={(id, status) => {
     }
   }
 
+  const updatedRequest = { ...target, status };
+  void saveAppDocument('accountRequests', updatedRequest).catch(console.error);
   setAccountRequests(prev =>
     prev.map(r =>
       r.id === id ? { ...r, status } : r
@@ -725,13 +907,22 @@ onUpdateStudent={st => {
   );
 }}
 
-onDeleteStudent={id => {
-  if (!canManage) return;
+onDeleteStudent={async id => {
+  if (!canManage) throw new Error('Bạn không có quyền xóa học sinh.');
 
   const target = students.find(s => s.id === id);
-  if (!target) return;
+  if (!target) throw new Error('Không tìm thấy học sinh.');
 
-  if (!canManageClass(target.classId)) return;
+  if (!canManageClass(target.classId)) throw new Error('Bạn chỉ được xóa học sinh thuộc lớp mình phụ trách.');
+
+  if (!auth.currentUser) throw new Error('Phiên đăng nhập đã hết hạn.');
+  const token = await auth.currentUser.getIdToken();
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/students/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result?.error || 'Không thể xóa toàn bộ dữ liệu học sinh.');
 
   setStudents(prev =>
     prev.filter(s => s.id !== id)
@@ -756,21 +947,20 @@ onAddStudentsBulk={async newStudents => {
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(result?.error || 'Không thể nhập danh sách học sinh.');
-  const createdStudents = result.students as User[];
+  const synchronizedStudents = result.students as User[];
 
-  setStudents(prev => [...createdStudents, ...prev]);
-  setClassesList(prev => prev.map(c => {
-    const added = createdStudents.filter(st => st.classId === c.id || st.className === c.name);
-    if (!added.length) return c;
-    return {
-      ...c,
-      studentCount: (c.studentCount || 0) + added.length,
-      maleCount: (c.maleCount || 0) + added.filter(st => st.gender === 'Nam').length,
-      femaleCount: (c.femaleCount || 0) + added.filter(st => st.gender === 'Nữ').length,
-      unionCount: (c.unionCount || 0) + added.filter(st => st.isUnionMember).length,
-    };
-  }));
-  return createdStudents;
+  setStudents(previous => {
+    const next = [...previous];
+    synchronizedStudents.forEach(student => {
+      const existingIndex = next.findIndex(item =>
+        item.id === student.id || item.email.toLowerCase() === student.email.toLowerCase()
+      );
+      if (existingIndex >= 0) next[existingIndex] = { ...next[existingIndex], ...student };
+      else next.unshift(student);
+    });
+    return next;
+  });
+  return synchronizedStudents;
 }}
 
              onAddClass={async cl => {
@@ -817,9 +1007,35 @@ onDeleteClass={id => {
   if (!isAdmin) return;
   setClassesList(prev => prev.filter(c => c.id !== id));
 }}
-                onAddTeacher={t => {
-  if (!isAdmin) return;
-  setTeachers(prev => [t, ...prev]);
+                onAddTeacher={async t => {
+  if (!isAdmin) throw new Error('Chỉ quản trị viên được thêm giáo viên.');
+  if (!auth.currentUser) throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+
+  const idToken = await auth.currentUser.getIdToken();
+  const teacherApiUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'}/api/teachers/create`;
+  let response: Response;
+  try {
+    response = await fetch(teacherApiUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idToken}` },
+    body: JSON.stringify(t),
+    });
+  } catch (error) {
+    console.error('[Create Teacher Network Error]', { teacherApiUrl, error });
+    throw new Error('Không kết nối được máy chủ tạo tài khoản giáo viên.');
+  }
+  const responseBody = await response.text();
+  let result: { teacher?: User; error?: string; code?: string } = {};
+  try {
+    result = responseBody ? JSON.parse(responseBody) : {};
+  } catch {
+    console.error('[Create Teacher Invalid Response]', { teacherApiUrl, status: response.status, responseBody });
+  }
+  if (!response.ok) {
+    throw new Error(result.error || `Máy chủ từ chối tạo giáo viên (HTTP ${response.status}).`);
+  }
+  if (!result.teacher) throw new Error('Máy chủ không trả về hồ sơ giáo viên vừa tạo.');
+  setTeachers(prev => [result.teacher as User, ...prev]);
 }}
 
 onUpdateTeacher={t => {
@@ -866,7 +1082,7 @@ onAddTeachersBulk={newTeachers => {
                 currentUser={currentUser}
                 disciplineRecords={disciplineRecords}
                 complaints={complaints}
-                students={students}
+                students={currentUser.classId ? students.filter(student => student.classId === currentUser.classId) : students}
                 pointUsageTransactions={pointUsageTransactions}
                 onAddPointUsageTransaction={handleAddPointUsageTransaction}
                 onCancelPointUsageTransaction={handleCancelPointUsageTransaction}
@@ -897,6 +1113,7 @@ onDeleteDisciplineRecord={id => {
   );
 }}         
                 onAddComplaint={cp => {
+  void saveAppDocument('complaints', cp).catch(console.error);
   setComplaints(prev => [cp, ...prev]);
 }}
 
@@ -913,6 +1130,8 @@ onResolveComplaint={(id, response) => {
     return;
   }
 
+  const resolvedComplaint: Complaint = { ...target, status: 'Đã giải quyết', response };
+  void saveAppDocument('complaints', resolvedComplaint).catch(console.error);
   setComplaints(prev =>
     prev.map(cp =>
       cp.id === id
@@ -937,16 +1156,18 @@ onResolveComplaint={(id, response) => {
                 onCancelPointUsageTransaction={handleCancelPointUsageTransaction}
                 onAddLearningRecord={rec => {
   if (!canManageClass(rec.classId)) return;
-
-  setLearningRecords(prev => [rec, ...prev]);
+  const allowedRecord = learningRecordForCurrentTeacher(rec);
+  if (!allowedRecord) return;
+  setLearningRecords(prev => [allowedRecord, ...prev]);
 }}
 
 onUpdateLearningRecord={rec => {
   if (!canManageClass(rec.classId)) return;
-
-  setLearningRecords(prev =>
-    prev.map(r => r.id === rec.id ? rec : r)
-  );
+  const existing = learningRecords.find(item => item.id === rec.id);
+  if (currentUser.role === 'teacher' && existing?.subjectName?.trim().toLocaleLowerCase('vi') !== currentUser.subject?.trim().toLocaleLowerCase('vi')) return;
+  const allowedRecord = learningRecordForCurrentTeacher(rec);
+  if (!allowedRecord) return;
+  setLearningRecords(prev => prev.map(r => r.id === rec.id ? allowedRecord : r));
 }}
 
 onDeleteLearningRecord={id => {
@@ -971,10 +1192,11 @@ onDeleteLearningRecord={id => {
                 students={students}
                 attendanceRecords={attendanceRecords}
                 onUpdateAttendance={recs =>{
-  if (!canManage) return;
+  const isOfficer = currentUser?.role === 'student' && Boolean(currentUser.position) && currentUser.position !== 'thành viên';
+  if (!currentUser || (!canManage && !isOfficer)) return;
 
   const allowed = recs.every(record =>
-    canManageClass(record.classId)
+    canManageClass(record.classId) || (isOfficer && record.classId === currentUser.classId)
   );
 
   if (!allowed) return;
@@ -1060,13 +1282,31 @@ onDeleteLearningRecord={id => {
 }}
                 disciplineRecords={disciplineRecords}
                 learningRecords={learningRecords}
-                onAddLearningRecord={rec => {if (!canManage) return;setLearningRecords([rec, ...learningRecords])}}
+                onAddLearningRecord={rec => {
+                  if (!canManage || !canManageClass(rec.classId)) return;
+                  const allowedRecord = learningRecordForCurrentTeacher(rec);
+                  if (!allowedRecord) return;
+                  setLearningRecords(prev => [allowedRecord, ...prev]);
+                }}
                 onAddDisciplineRecord={rec => {
   if (!canManageClass(rec.classId)) return;
 
   setDisciplineRecords(prev => [rec, ...prev]);
 }}
                 onActivityPointSaved={mergeActivityPoint}
+              />
+            )}
+
+            {activeTab === 'online_tests' && (
+              <OnlineTestsTab
+                currentUser={currentUser}
+                classesList={classesList.filter(classItem =>
+                  currentUser.role === 'admin'
+                    ? true
+                    : currentUser.role === 'teacher'
+                      ? canManageClass(classItem.id)
+                      : classItem.id === currentUser.classId
+                )}
               />
             )}
 
@@ -1078,6 +1318,7 @@ onDeleteLearningRecord={id => {
                 onAddStorageItem={item => {
   if (item.userId !== currentUser?.id) return;
 
+  void saveAppDocument('personalStorageItems', item).catch(console.error);
   setStorageItems(prev => [item, ...prev]);
 }}
 
@@ -1087,6 +1328,7 @@ onDeleteStorageItem={id => {
 
   if (target.userId !== currentUser?.id) return;
 
+  void deleteAppDocument('personalStorageItems', id).catch(console.error);
   setStorageItems(prev =>
     prev.filter(s => s.id !== id)
   );

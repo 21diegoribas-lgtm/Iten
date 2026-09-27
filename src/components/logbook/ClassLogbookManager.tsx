@@ -59,7 +59,7 @@ export const ClassLogbookManager: React.FC<ClassLogbookManagerProps> = ({
 
   // State
   const [selectedClassId, setSelectedClassId] = useState<string>(
-    currentUser.classId || classesList[0]?.id || 'c1'
+    currentUser.classId || classesList[0]?.id || ''
   );
   const [selectedYear, setSelectedYear] = useState<string>('2025 - 2026');
   const [selectedSemester, setSelectedSemester] = useState<'Học kỳ 1' | 'Học kỳ 2'>('Học kỳ 1');
@@ -84,8 +84,8 @@ export const ClassLogbookManager: React.FC<ClassLogbookManagerProps> = ({
   const currentClass = useMemo(() => {
     return classesList.find(c => c.id === selectedClassId) || {
       id: selectedClassId,
-      name: currentUser.className || 'Lớp 8A1',
-      homeroomTeacher: 'Cô Lê Thị Mai'
+      name: currentUser.className || '',
+      homeroomTeacher: ''
     };
   }, [classesList, selectedClassId, currentUser]);
 
@@ -120,9 +120,9 @@ export const ClassLogbookManager: React.FC<ClassLogbookManagerProps> = ({
         academicYear: selectedYear,
         semester: selectedSemester,
         weekNumber: selectedWeek,
-        startDate: '2026-08-24',
-        endDate: '2026-08-29',
-        homeroomTeacherName: currentClass.homeroomTeacher || 'Cô Lê Thị Mai',
+        startDate: '',
+        endDate: '',
+        homeroomTeacherName: currentClass.homeroomTeacher || '',
         classOfficerName: currentUser.fullName,
         status: 'draft',
         totalPeriods: 0,
@@ -307,14 +307,14 @@ export const ClassLogbookManager: React.FC<ClassLogbookManagerProps> = ({
       date: currentWeekLogbook.startDate || new Date().toISOString().split('T')[0],
       period: defaultPeriod,
       session: 'Sáng',
-      subject: 'Toán học',
+      subject: '',
       lessonContent: '',
       score: 10,
       classification: 'Tốt',
-      teacherName: 'Thầy Nguyễn Hữu Hùng',
-      teacherSignature: true,
-      teacherComment: 'Lớp học trật tự, tập trung và phát biểu hăng hái.',
-      absentStudents: 'Đủ',
+      teacherName: currentUser.role === 'teacher' ? currentUser.fullName : '',
+      teacherSignature: false,
+      teacherComment: '',
+      absentStudents: '',
       updatedBy: `${currentUser.fullName} (${currentUser.position || currentUser.role})`,
       updatedAt: new Date().toISOString()
     });
@@ -351,7 +351,7 @@ export const ClassLogbookManager: React.FC<ClassLogbookManagerProps> = ({
     const periodData: ClassLogbookPeriod = {
       id: editingPeriod.id || `p_${Date.now()}`,
       day: editingPeriod.day || 'Thứ 2',
-      date: editingPeriod.date || '2026-08-24',
+      date: editingPeriod.date || new Date().toISOString().split('T')[0],
       period: Number(editingPeriod.period) || 1,
       session: editingPeriod.session || 'Sáng',
       subject: finalSubject,
@@ -360,8 +360,8 @@ export const ClassLogbookManager: React.FC<ClassLogbookManagerProps> = ({
       classification: editingPeriod.classification || autoClass,
       teacherName: editingPeriod.teacherName || 'Giáo viên bộ môn',
       teacherSignature: editingPeriod.teacherSignature ?? true,
-      teacherComment: editingPeriod.teacherComment || 'Tiết học tốt.',
-      absentStudents: editingPeriod.absentStudents || 'Đủ',
+      teacherComment: editingPeriod.teacherComment || '',
+      absentStudents: editingPeriod.absentStudents || '',
       updatedBy: `${currentUser.fullName} (${currentUser.position || currentUser.role})`,
       updatedAt: new Date().toISOString().replace('T', ' ').substring(0, 16)
     };
@@ -416,70 +416,11 @@ export const ClassLogbookManager: React.FC<ClassLogbookManagerProps> = ({
   // Auto-fill from timetable
   const handleAutoFillFromTimetable = () => {
     soundFx.playClick();
-    const timetable = timetables.find(t => t.classId === selectedClassId) || {
-      schedule: [
-        {
-          day: 'Thứ 2',
-          periods: [
-            { period: 1, subject: 'Chào cờ', teacherName: 'Toàn trường' },
-            { period: 2, subject: 'Toán học', teacherName: 'Thầy Nguyễn Hữu Hùng' },
-            { period: 3, subject: 'Ngữ Văn', teacherName: 'Cô Lê Thị Mai' },
-            { period: 4, subject: 'Tiếng Anh', teacherName: 'Cô Sarah Miller' },
-            { period: 5, subject: 'Vật Lý', teacherName: 'Thầy Trần Văn Tuấn' }
-          ]
-        },
-        {
-          day: 'Thứ 3',
-          periods: [
-            { period: 1, subject: 'Vật Lý', teacherName: 'Thầy Trần Văn Tuấn' },
-            { period: 2, subject: 'Hóa Học', teacherName: 'Cô Hoàng Lan' },
-            { period: 3, subject: 'Lịch Sử', teacherName: 'Thầy Vũ Hải Nam' },
-            { period: 4, subject: 'Địa Lý', teacherName: 'Cô Nguyễn Thu Hương' },
-            { period: 5, subject: 'Toán học', teacherName: 'Thầy Nguyễn Hữu Hùng' }
-          ]
-        },
-        {
-          day: 'Thứ 4',
-          periods: [
-            { period: 1, subject: 'Toán học', teacherName: 'Thầy Nguyễn Hữu Hùng' },
-            { period: 2, subject: 'Ngữ Văn', teacherName: 'Cô Lê Thị Mai' },
-            { period: 3, subject: 'Sinh Học', teacherName: 'Cô Phạm Phương Thảo' },
-            { period: 4, subject: 'Tin Học', teacherName: 'Thầy Trịnh Văn Bình' },
-            { period: 5, subject: 'Tiếng Anh', teacherName: 'Cô Sarah Miller' }
-          ]
-        },
-        {
-          day: 'Thứ 5',
-          periods: [
-            { period: 1, subject: 'Tiếng Anh', teacherName: 'Cô Sarah Miller' },
-            { period: 2, subject: 'GDCD', teacherName: 'Thầy Đỗ Minh Đức' },
-            { period: 3, subject: 'Công Nghệ', teacherName: 'Cô Đinh Như Quỳnh' },
-            { period: 4, subject: 'Thể Dục', teacherName: 'Thầy Bùi Phi Long' },
-            { period: 5, subject: 'Ngữ Văn', teacherName: 'Cô Lê Thị Mai' }
-          ]
-        },
-        {
-          day: 'Thứ 6',
-          periods: [
-            { period: 1, subject: 'Toán học', teacherName: 'Thầy Nguyễn Hữu Hùng' },
-            { period: 2, subject: 'Ngữ Văn', teacherName: 'Cô Lê Thị Mai' },
-            { period: 3, subject: 'Mỹ Thuật', teacherName: 'Cô Phan Bích Vân' },
-            { period: 4, subject: 'Âm Nhạc', teacherName: 'Thầy Hoàng Đăng Khoa' },
-            { period: 5, subject: 'Sinh Học', teacherName: 'Cô Phạm Phương Thảo' }
-          ]
-        },
-        {
-          day: 'Thứ 7',
-          periods: [
-            { period: 1, subject: 'KHTN', teacherName: 'Thầy Trần Văn Tuấn' },
-            { period: 2, subject: 'Lịch Sử', teacherName: 'Thầy Vũ Hải Nam' },
-            { period: 3, subject: 'Địa Lý', teacherName: 'Cô Nguyễn Thu Hương' },
-            { period: 4, subject: 'Hoạt động trải nghiệm', teacherName: 'Cô Lê Thị Mai' },
-            { period: 5, subject: 'Sinh hoạt lớp', teacherName: 'Cô Lê Thị Mai' }
-          ]
-        }
-      ]
-    };
+    const timetable = timetables.find(t => t.classId === selectedClassId);
+    if (!timetable) {
+      alert('Lớp chưa có thời khóa biểu trên hệ thống.');
+      return;
+    }
 
     if (!window.confirm('Hệ thống sẽ tự động điền danh sách tiết học và giáo viên trong tuần theo Thời khóa biểu của lớp. Bạn có muốn tiếp tục?')) {
       return;
@@ -595,7 +536,7 @@ export const ClassLogbookManager: React.FC<ClassLogbookManagerProps> = ({
                 Sổ đầu bài {currentClass.name}
               </h2>
               <p className="text-sm text-blue-100 font-medium">
-                GVCN: {currentClass.homeroomTeacher || 'Cô Lê Thị Mai'} • Cán sự trực sổ:{' '}
+                GVCN: {currentClass.homeroomTeacher || 'Chưa phân công'} • Cán sự trực sổ:{' '}
                 {currentWeekLogbook.classOfficerName || 'Trần Thị Bích'}
               </p>
             </div>
@@ -875,7 +816,7 @@ export const ClassLogbookManager: React.FC<ClassLogbookManagerProps> = ({
             )}
           </div>
           <div className="text-[11px] text-slate-500 font-medium mt-1 truncate">
-            {currentWeekLogbook.homeroomTeacherName || 'Cô Lê Thị Mai'}
+            {currentWeekLogbook.homeroomTeacherName || 'Chưa phân công'}
           </div>
         </div>
       </div>
@@ -892,7 +833,7 @@ export const ClassLogbookManager: React.FC<ClassLogbookManagerProps> = ({
                 Nhận xét & Đánh giá tổng kết tuần của Giáo viên chủ nhiệm
               </h4>
               <span className="text-[11px] text-amber-700 font-bold">
-                {currentWeekLogbook.homeroomTeacherName || 'Cô Lê Thị Mai'} • Đã ký
+                {currentWeekLogbook.homeroomTeacherName || 'Chưa phân công'} • Đã ký
               </span>
             </div>
             <p className="text-xs text-amber-950 font-medium mt-1 leading-relaxed">
@@ -1816,7 +1757,7 @@ export const ClassLogbookManager: React.FC<ClassLogbookManagerProps> = ({
                   </p>
                 </div>
                 <div className="text-right text-xs">
-                  <p className="font-bold">GVCN: {currentClass.homeroomTeacher || 'Cô Lê Thị Mai'}</p>
+                  <p className="font-bold">GVCN: {currentClass.homeroomTeacher || 'Chưa phân công'}</p>
                   <p className="text-slate-600">Cán sự: {currentWeekLogbook.classOfficerName || 'Trần Thị Bích'}</p>
                 </div>
               </div>
@@ -1878,7 +1819,7 @@ export const ClassLogbookManager: React.FC<ClassLogbookManagerProps> = ({
                   <div>
                     <p className="font-bold">GIÁO VIÊN CHỦ NHIỆM</p>
                     <p className="text-[10px] text-slate-500 italic mb-10">(Ký và duyệt)</p>
-                    <p className="font-bold">{currentClass.homeroomTeacher || 'Cô Lê Thị Mai'}</p>
+                    <p className="font-bold">{currentClass.homeroomTeacher || 'Chưa phân công'}</p>
                   </div>
                 </div>
               </div>

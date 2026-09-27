@@ -28,8 +28,9 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { randomBytes } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
-import { DEMO_USERS } from '../src/mockData';
 import type { User } from '../src/types';
+
+const USERS_TO_PROVISION: User[] = [];
 
 interface ProvisionOptions {
   dryRun?: boolean;
@@ -134,7 +135,7 @@ export async function provisionUsers(
       isDryRun ? 'DRY-RUN (MÔ PHỎNG, KHÔNG GHI)' : 'LIVE (THỰC THI)'
     }`,
   );
-  console.log(`  Tổng số tài khoản nguồn: ${DEMO_USERS.length}`);
+  console.log(`  Tổng số tài khoản nguồn: ${USERS_TO_PROVISION.length}`);
   console.log('====================================================\n');
 
   const app = initializeFirebaseAdmin();
@@ -165,7 +166,7 @@ export async function provisionUsers(
     resetLink: string;
   }> = [];
 
-  for (const user of DEMO_USERS) {
+  for (const user of USERS_TO_PROVISION) {
     const targetUid = user.id;
     const email = user.email;
 

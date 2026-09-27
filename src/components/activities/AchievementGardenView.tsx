@@ -10,7 +10,7 @@ import {
   SpyGameMission,
   ActivityPointRecord
 } from '../../types';
-import { loadGardenConfig, loadGardenSpinHistory, saveGardenConfig, saveGardenSpin } from '../../services/achievementGardenService';
+import { loadGardenConfig, loadGardenSpinHistory, loadGardenSpinUsage, resetGardenSpinUsage, saveGardenConfig, saveGardenSpin } from '../../services/achievementGardenService';
 import { soundFx } from '../../utils/sound';
 import {
   Trophy,
@@ -274,8 +274,11 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
     });
   };
 
-  const handleResetStudentSpins = (studentId?: string) => {
+  const handleResetStudentSpins = async (studentId?: string) => {
+    if (!currentUser.classId || !isTeacherOrAdmin) return;
     if (studentId) {
+      try { await resetGardenSpinUsage(currentUser.classId, selectedSpinWeek, studentId); }
+      catch (error) { alert(error instanceof Error ? error.message : 'Không thể khôi phục lượt quay.'); return; }
       setUsedSpinsMap((prev) => {
         const updated = { ...prev };
         delete updated[studentId];
@@ -289,6 +292,8 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
       soundFx.playSuccess();
     } else {
       if (window.confirm('Khôi phục lượt quay cho tất cả học sinh?')) {
+        try { await resetGardenSpinUsage(currentUser.classId, selectedSpinWeek); }
+        catch (error) { alert(error instanceof Error ? error.message : 'Không thể khôi phục lượt quay.'); return; }
         setUsedSpinsMap({});
         try {
           localStorage.setItem('iten_garden_used_spins', JSON.stringify({}));
@@ -329,7 +334,9 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
     const classId = currentUser.classId;
     if (!classId) return;
     let cancelled = false;
-    Promise.all([loadGardenConfig(classId), loadGardenSpinHistory(classId)]).then(([config, history]) => {
+    gardenLoaded.current = false;
+    loadGardenConfig(classId).then(async config => {
+      const history = await loadGardenSpinHistory(classId);
       if (cancelled) return;
       if (config) {
         setIsSpinActive(config.isSpinActive);
@@ -338,16 +345,36 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
         setPointRanges(config.pointRanges);
         setScoreTypeBasis(config.scoreTypeBasis);
         setRewardConfig(config.rewardConfig);
+      } else {
+        setIsSpinActive(true);
+        setSpinAwardTarget('learning');
+        setSelectedSpinWeek(4);
+        setPointRanges(DEFAULT_POINT_RANGES);
+        setScoreTypeBasis('overall');
+        setRewardConfig(DEFAULT_REWARD_CONFIG);
       }
       setSpinHistory(history);
-      const activeWeek = config?.selectedSpinWeek ?? selectedSpinWeek;
-      const counts: Record<string, number> = {};
-      history.filter(item => item.week === activeWeek).forEach(item => { counts[item.studentId] = (counts[item.studentId] || 0) + 1; });
-      setUsedSpinsMap(counts);
       gardenLoaded.current = true;
     }).catch(error => console.error('[Garden load]', error));
     return () => { cancelled = true; };
   }, [currentUser.classId]);
+
+  useEffect(() => {
+    if (!currentUser.classId) {
+      setUsedSpinsMap({});
+      return;
+    }
+    let cancelled = false;
+    loadGardenSpinUsage(currentUser.classId, selectedSpinWeek)
+      .then(usage => { if (!cancelled) setUsedSpinsMap(usage); })
+      .catch(error => console.error('[Garden usage load]', error));
+    return () => { cancelled = true; };
+  }, [currentUser.classId, selectedSpinWeek]);
+
+  useEffect(() => {
+    if (currentUser.role === 'student') setSelectedStudentForBonus(currentUser.id);
+    else if (!students.some(student => student.id === selectedStudentForBonus)) setSelectedStudentForBonus(students[0]?.id || '');
+  }, [currentUser.id, currentUser.role, students, selectedStudentForBonus]);
 
   useEffect(() => {
     if (!gardenLoaded.current || !isTeacherOrAdmin || !currentUser.classId) return;
@@ -482,7 +509,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
 
     const recDate = new Date(recordDateStr);
     if (isNaN(recDate.getTime())) return true;
-    const now = new Date('2026-08-25');
+    const now = new Date();
 
     if (timeframe === 'week') {
       if (typeof recWeek === 'number' && recWeek > 0) {
@@ -665,7 +692,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
     };
 
     // Aggregate Learning Records
-    learningRecords.forEach((rec) => {
+    filteredLearningRecords.forEach((rec) => {
       const stData = statsMap[rec.studentId];
       if (!stData) return;
       const classif = getClassification(rec);
@@ -691,7 +718,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
     });
 
     // Aggregate Discipline Records
-    disciplineRecords.forEach((rec) => {
+    filteredDisciplineRecords.forEach((rec) => {
       const stData = statsMap[rec.studentId];
       if (!stData) return;
       const classif = getClassification(rec);
@@ -723,7 +750,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
     });
 
     return statsMap;
-  }, [students, learningRecords, disciplineRecords, activityCategoryMap]);
+  }, [students, filteredLearningRecords, filteredDisciplineRecords, activityCategoryMap]);
 
   // Active student garden stats
   const currentViewStudentId = isTeacherOrAdmin ? (selectedStudentForBonus || currentUser.id) : currentUser.id;
@@ -1247,7 +1274,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
               </div>
               <p className="text-xs text-emerald-200/80 mt-0.5">
                 {isTeacherOrAdmin
-                  ? `Học sinh: ${activeGardenStudentStats.student.fullName} (${activeGardenStudentStats.student.className || 'Lớp 8A1'})`
+                  ? `Học sinh: ${activeGardenStudentStats.student.fullName} (${activeGardenStudentStats.student.className || 'Chưa gán lớp'})`
                   : `Tài khoản: ${currentUser.fullName} — Tất cả điểm tích lũy từ Hoạt Động`}
               </p>
             </div>
@@ -1915,7 +1942,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
                           </td>
                           <td className="p-3 text-slate-600">
                             <span className="font-semibold text-purple-700 bg-purple-100/70 px-1.5 py-0.5 rounded mr-1">
-                              {item.student.team || 'Lớp 8A1'}
+                              {item.student.team || 'Chưa xếp tổ'}
                             </span>
                             {item.student.position && item.student.position !== 'thành viên' && (
                               <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">
@@ -2125,13 +2152,13 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
                   >
                     {students.map((st) => (
                       <option key={st.id} value={st.id}>
-                        {st.fullName} ({st.team || 'Lớp 8A1'})
+                        {st.fullName} ({st.team || 'Chưa xếp tổ'})
                       </option>
                     ))}
                   </select>
                 ) : (
                   <div className="p-2 bg-slate-100 rounded-xl font-bold text-slate-900 text-xs border border-slate-200">
-                    👤 {currentUser.fullName} ({currentUser.team || 'Lớp 8A1'})
+                    👤 {currentUser.fullName} ({currentUser.team || 'Chưa xếp tổ'})
                   </div>
                 )}
               </div>
@@ -2837,6 +2864,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
                         type="number"
                         step="0.05"
                         min="0.05"
+                        max="20"
                         value={rewardConfig.minReward}
                         onChange={(e) => saveRewardConfig({ ...rewardConfig, minReward: parseFloat(e.target.value) || 0.25 })}
                         className="w-full p-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-900"
@@ -2849,6 +2877,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
                         type="number"
                         step="0.05"
                         min="0.05"
+                        max="20"
                         value={rewardConfig.maxReward}
                         onChange={(e) => saveRewardConfig({ ...rewardConfig, maxReward: parseFloat(e.target.value) || 1.0 })}
                         className="w-full p-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-900"
@@ -2997,7 +3026,7 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
                             <td className="p-3 font-bold text-slate-900">
                               {st.fullName}
                               <span className="text-[10px] text-slate-400 font-normal ml-1">
-                                ({st.team || 'Lớp 8A1'})
+                                ({st.team || 'Chưa xếp tổ'})
                               </span>
                             </td>
                             <td className="p-3 text-center font-black text-blue-700">

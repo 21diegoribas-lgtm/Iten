@@ -161,6 +161,10 @@ export const LearningRaceScene: React.FC<LearningRaceSceneProps> = ({
   const [tempTimeMinutes, setTempTimeMinutes] = useState(racingConfig.timeMinutes || 5);
   const [tempTrackLength, setTempTrackLength] = useState(racingConfig.trackLength || 1000);
   const [tempTrackCount, setTempTrackCount] = useState(racingConfig.trackCount || 4);
+  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
+  const [questionDraft, setQuestionDraft] = useState({
+    question: '', type: 'mcq' as RacingQuestion['type'], options: ['', '', '', ''], correctAnswer: ''
+  });
 
   // Sync teams when config changes
   useEffect(() => {
@@ -693,6 +697,61 @@ export const LearningRaceScene: React.FC<LearningRaceSceneProps> = ({
     if (!soundMuted) soundFx.playSuccess();
     alert('Đã cập nhật cấu hình Đường đua học tập thành công!');
     setIsTeacherModalOpen(false);
+  };
+
+  const resetQuestionDraft = () => {
+    setEditingQuestionId(null);
+    setQuestionDraft({ question: '', type: 'mcq', options: ['', '', '', ''], correctAnswer: '' });
+  };
+
+  const handleSaveQuestion = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!isTeacherOrAdmin || !questionDraft.question.trim() || !questionDraft.correctAnswer.trim()) {
+      setHistoryError('Hãy nhập đầy đủ câu hỏi và đáp án đúng.');
+      return;
+    }
+    const options = questionDraft.type === 'mcq'
+      ? questionDraft.options.map(option => option.trim()).filter(Boolean)
+      : questionDraft.type === 'bool' ? ['Đúng', 'Sai'] : undefined;
+    if (questionDraft.type === 'mcq' && (!options || options.length < 2 || !options.includes(questionDraft.correctAnswer.trim()))) {
+      setHistoryError('Câu trắc nghiệm cần ít nhất 2 lựa chọn và đáp án đúng phải nằm trong các lựa chọn.');
+      return;
+    }
+    const question: RacingQuestion = {
+      id: editingQuestionId || `race_q_${Date.now()}`,
+      question: questionDraft.question.trim(),
+      type: questionDraft.type,
+      options,
+      correctAnswer: questionDraft.correctAnswer.trim(),
+    };
+    const questions = editingQuestionId
+      ? racingConfig.questions.map(item => item.id === editingQuestionId ? question : item)
+      : [...racingConfig.questions, question];
+    if (await persistConfig({ ...racingConfig, questions })) {
+      resetQuestionDraft();
+      soundFx.playSuccess();
+    }
+  };
+
+  const handleEditQuestion = (question: RacingQuestion) => {
+    if (!isTeacherOrAdmin) return;
+    setEditingQuestionId(question.id);
+    setQuestionDraft({
+      question: question.question,
+      type: question.type,
+      options: question.type === 'mcq' ? [...(question.options || []), '', '', '', ''].slice(0, 4) : ['', '', '', ''],
+      correctAnswer: question.correctAnswer,
+    });
+  };
+
+  const handleDeleteQuestion = async (questionId: string) => {
+    if (!isTeacherOrAdmin || !window.confirm('Xóa câu hỏi này khỏi đường đua?')) return;
+    const questions = racingConfig.questions.filter(question => question.id !== questionId);
+    if (await persistConfig({ ...racingConfig, questions })) {
+      if (editingQuestionId === questionId) resetQuestionDraft();
+      setCurrentQuestionIdx(index => Math.min(index, Math.max(0, questions.length - 1)));
+      soundFx.playSuccess();
+    }
   };
 
   const currentQ = racingConfig.questions[currentQuestionIdx] || racingConfig.questions[0];
@@ -1295,16 +1354,39 @@ export const LearningRaceScene: React.FC<LearningRaceSceneProps> = ({
 
             {/* Tab 3: Questions */}
             {settingsTab === 'questions' && (
-              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+                <form onSubmit={handleSaveQuestion} className="p-4 rounded-2xl border border-amber-200 bg-amber-50/60 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-black text-amber-900">{editingQuestionId ? 'Sửa câu hỏi' : 'Thêm câu hỏi mới'}</h4>
+                    {editingQuestionId && <button type="button" onClick={resetQuestionDraft} className="text-xs font-bold text-slate-500 hover:text-slate-800">Hủy sửa</button>}
+                  </div>
+                  <textarea value={questionDraft.question} onChange={event => setQuestionDraft(draft => ({ ...draft, question: event.target.value }))} rows={2} placeholder="Nhập nội dung câu hỏi..." className="w-full p-2.5 rounded-xl border border-amber-200 bg-white text-xs font-semibold" />
+                  <select value={questionDraft.type} onChange={event => setQuestionDraft(draft => ({ ...draft, type: event.target.value as RacingQuestion['type'], correctAnswer: '' }))} className="w-full p-2.5 rounded-xl border border-amber-200 bg-white text-xs font-bold">
+                    <option value="mcq">Trắc nghiệm</option><option value="fill">Điền đáp án</option><option value="bool">Đúng / Sai</option>
+                  </select>
+                  {questionDraft.type === 'mcq' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {questionDraft.options.map((option, index) => <input key={index} value={option} onChange={event => setQuestionDraft(draft => ({ ...draft, options: draft.options.map((item, optionIndex) => optionIndex === index ? event.target.value : item) }))} placeholder={`Lựa chọn ${index + 1}`} className="p-2.5 rounded-xl border border-slate-200 bg-white text-xs" />)}
+                    </div>
+                  )}
+                  {questionDraft.type === 'bool' ? (
+                    <select value={questionDraft.correctAnswer} onChange={event => setQuestionDraft(draft => ({ ...draft, correctAnswer: event.target.value }))} className="w-full p-2.5 rounded-xl border border-emerald-200 bg-white text-xs font-bold"><option value="">-- Chọn đáp án đúng --</option><option value="Đúng">Đúng</option><option value="Sai">Sai</option></select>
+                  ) : questionDraft.type === 'mcq' ? (
+                    <select value={questionDraft.correctAnswer} onChange={event => setQuestionDraft(draft => ({ ...draft, correctAnswer: event.target.value }))} className="w-full p-2.5 rounded-xl border border-emerald-200 bg-white text-xs font-bold"><option value="">-- Chọn đáp án đúng --</option>{questionDraft.options.filter(Boolean).map((option, index) => <option key={`${option}_${index}`} value={option.trim()}>{option}</option>)}</select>
+                  ) : (
+                    <input value={questionDraft.correctAnswer} onChange={event => setQuestionDraft(draft => ({ ...draft, correctAnswer: event.target.value }))} placeholder="Nhập đáp án đúng" className="w-full p-2.5 rounded-xl border border-emerald-200 bg-white text-xs font-bold" />
+                  )}
+                  <button type="submit" disabled={savingConfig} className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 text-white text-xs font-black">{savingConfig ? 'Đang lưu...' : editingQuestionId ? 'Lưu câu hỏi' : 'Thêm câu hỏi'}</button>
+                </form>
+                {racingConfig.questions.length === 0 && <p className="text-center text-xs font-semibold text-slate-500 py-3">Chưa có câu hỏi. Giáo viên hãy thêm câu hỏi đầu tiên.</p>}
                 {racingConfig.questions.map((q, idx) => (
                   <div key={q.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-black text-amber-800">Câu #{idx + 1} ({q.type})</span>
-                      <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
-                        Đ/A: {q.correctAnswer}
-                      </span>
+                      <div className="flex items-center gap-1.5"><button type="button" onClick={() => handleEditQuestion(q)} className="px-2 py-1 rounded-lg bg-sky-100 text-sky-700 text-[10px] font-bold">Sửa</button><button type="button" onClick={() => handleDeleteQuestion(q.id)} className="px-2 py-1 rounded-lg bg-rose-100 text-rose-700 text-[10px] font-bold">Xóa</button></div>
                     </div>
                     <p className="text-xs font-bold text-slate-700">{q.question}</p>
+                    <p className="text-[10px] font-bold text-emerald-700">Đáp án: {q.correctAnswer}</p>
                   </div>
                 ))}
               </div>

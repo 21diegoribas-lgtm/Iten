@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Award, BookOpen, Sparkles, Wrench, Trophy, Star, Shield } from 'lucide-react';
+import { LayoutDashboard, Award, BookOpen, Sparkles, Wrench, ClipboardCheck } from 'lucide-react';
 import { soundFx } from '../utils/sound';
 import { MainTabType, User } from '../types';
 import { getAvatarUrl } from '../utils/avatarHelper';
@@ -44,6 +44,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, curren
       icon: Sparkles,
       activeBg: 'bg-gradient-to-b from-[#FB923C] to-[#EA580C] text-white border-2 border-[#FFEDD5] shadow-[0_5px_0_#9A3412]',
       hoverBg: 'hover:bg-orange-50 text-slate-700 bg-white/80 border border-orange-100 shadow-[0_2px_0_#FED7AA]'
+    },
+    {
+      id: 'online_tests' as MainTabType,
+      label: 'Kiểm tra online',
+      emoji: '📝',
+      icon: ClipboardCheck,
+      activeBg: 'bg-gradient-to-b from-[#6366F1] to-[#4338CA] text-white border-2 border-[#C7D2FE] shadow-[0_5px_0_#312E81]',
+      hoverBg: 'hover:bg-indigo-50 text-slate-700 bg-white/80 border border-indigo-100 shadow-[0_2px_0_#C7D2FE]'
     },
     {
       id: 'utilities' as MainTabType,
@@ -167,4 +175,3 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, curren
     </aside>
   );
 };
-
