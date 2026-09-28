@@ -289,7 +289,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   });
 
   // Notification Target Search state
-  const [notifTargetType, setNotifTargetType] = useState<'all' | 'class' | 'student' | 'teacher'>('all');
+  const [notifTargetType, setNotifTargetType] = useState<'all' | 'class' | 'student' | 'team' | 'teacher'>(
+    currentUser.role === 'admin' ? 'all' : 'class'
+  );
   const [notifTargetClass, setNotifTargetClass] = useState('all');
   const [notifTargetStudentId, setNotifTargetStudentId] = useState('');
   const [notifTargetTeam, setNotifTargetTeam] = useState('Tổ 1');
@@ -479,6 +481,19 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   if (!notifTitle || !notifContent) return;
 
   try {
+    const selectedClass = classesList.find(item => item.id === notifTargetClass || item.name === notifTargetClass);
+    const selectedStudent = students.find(item => item.id === notifTargetStudentId);
+    if (notifTargetType === 'class' && !selectedClass) throw new Error('Vui lòng chọn lớp nhận thông báo.');
+    if (notifTargetType === 'student' && !selectedStudent) throw new Error('Vui lòng chọn học sinh nhận thông báo.');
+    const targetClassId = notifTargetType === 'class'
+      ? selectedClass?.id
+      : notifTargetType === 'student'
+        ? selectedStudent?.classId
+        : notifTargetType === 'team'
+          ? currentUser.classId
+          : undefined;
+    if (notifTargetType === 'team' && !targetClassId) throw new Error('Tài khoản chưa được gán lớp để gửi thông báo theo tổ.');
+
     await onAddNotification({
       id: 'n_' + Date.now(),
       title: notifTitle,
@@ -491,8 +506,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           : currentUser.role === 'admin'
             ? 'Admin'
             : 'Cán sự lớp',
-      targetClassId: currentUser.classId || 'c1',
-      targetType: notifTargetType,
+      targetType: notifTargetType === 'teacher' ? 'all' : notifTargetType,
+      targetRole: notifTargetType === 'teacher' ? 'teacher' : 'all',
+      ...(targetClassId ? { targetClassId } : {}),
+      ...(selectedClass ? { targetClassName: selectedClass.name } : {}),
       targetTeam:
         notifTargetType === 'team'
           ? notifTargetTeam
@@ -501,6 +518,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         notifTargetType === 'student'
           ? notifTargetStudentId
           : undefined,
+      ...(selectedStudent ? { targetStudentName: selectedStudent.fullName } : {}),
       createdAt: new Date()
         .toISOString()
         .replace('T', ' ')
@@ -1616,7 +1634,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 }}
                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-amber-900 focus:outline-none focus:border-amber-400"
               >
-                <option value="all">🌐 Tất cả các lớp & học sinh</option>
+                {currentUser.role === 'admin' && <option value="all">🌐 Tất cả các lớp & học sinh</option>}
                 <option value="class">🏫 Lớp học cụ thể</option>
                 <option value="student">👤 Học sinh cụ thể của từng lớp</option>
                 <option value="team">👥 Gửi theo Tổ thi đua (Tổ 1 - 4)</option>

@@ -254,6 +254,7 @@ allow get, list: if isAuthenticated() && (
 
   (
     resource.data.targetType == 'team' &&
+    resource.data.targetClassId == getUserClassId() &&
     resource.data.targetTeam == getCurrentUserData().team &&
     (
       !('targetRole' in resource.data) ||
@@ -273,8 +274,14 @@ allow get, list: if isAuthenticated() && (
     isAdmin() ||
     (
       isTeacher() &&
-      request.resource.data.targetType == 'class' &&
+      request.resource.data.targetType in ['class', 'team', 'student'] &&
       teacherManagesClass(request.resource.data.targetClassId) &&
+      (request.resource.data.targetType != 'team' || request.resource.data.targetTeam is string) &&
+      (request.resource.data.targetType != 'student' || (
+        request.resource.data.targetStudentId is string &&
+        exists(/databases/$(database)/documents/students/$(request.resource.data.targetStudentId)) &&
+        get(/databases/$(database)/documents/students/$(request.resource.data.targetStudentId)).data.classId == request.resource.data.targetClassId
+      )) &&
       request.resource.data.senderName == getCurrentUserData().fullName &&
       request.resource.data.senderRole == 'teacher'
     )

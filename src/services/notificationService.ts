@@ -136,12 +136,32 @@ export async function getNotifications(): Promise<NotificationItem[]> {
 }
 
 export async function getNotificationsForUser(user: User): Promise<NotificationItem[]> {
-  if (user.role === 'admin' || user.role === 'teacher') return getNotifications();
+  if (user.role === 'admin') return getNotifications();
+  const allowedRoles = user.role === 'teacher' ? ['all', 'teacher'] : ['all', 'student'];
   const refs = [
-    query(collection(db, NOTIFICATIONS_COLLECTION), where('targetType', '==', 'all')),
-    ...(user.classId ? [query(collection(db, NOTIFICATIONS_COLLECTION), where('targetClassId', '==', user.classId))] : []),
-    ...(user.team ? [query(collection(db, NOTIFICATIONS_COLLECTION), where('targetTeam', '==', user.team))] : []),
-    query(collection(db, NOTIFICATIONS_COLLECTION), where('targetStudentId', '==', user.id)),
+    query(
+      collection(db, NOTIFICATIONS_COLLECTION),
+      where('targetType', '==', 'all'),
+      where('targetRole', 'in', allowedRoles),
+    ),
+    ...(user.classId ? [query(
+      collection(db, NOTIFICATIONS_COLLECTION),
+      where('targetType', '==', 'class'),
+      where('targetClassId', '==', user.classId),
+      where('targetRole', 'in', allowedRoles),
+    )] : []),
+    ...(user.role === 'student' && user.classId && user.team ? [query(
+      collection(db, NOTIFICATIONS_COLLECTION),
+      where('targetType', '==', 'team'),
+      where('targetClassId', '==', user.classId),
+      where('targetTeam', '==', user.team),
+      where('targetRole', 'in', ['all', 'student']),
+    )] : []),
+    ...(user.role === 'student' ? [query(
+      collection(db, NOTIFICATIONS_COLLECTION),
+      where('targetType', '==', 'student'),
+      where('targetStudentId', '==', user.id),
+    )] : []),
   ];
   const snapshots = await Promise.all(refs.map(ref => getDocs(ref)));
   const byId = new Map<string, NotificationItem>();

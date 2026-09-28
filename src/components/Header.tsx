@@ -23,13 +23,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [soundOn, setSoundOn] = useState(getSoundEnabled());
 
-  const unreadCount = notifications.filter(
-    (n) =>
-      !n.isRead &&
-      (n.targetRole === 'all' ||
-        n.targetRole === currentUser.role ||
-        n.targetClassId === currentUser.classId)
-  ).length;
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const toggleSound = () => {
     const next = !soundOn;
@@ -147,11 +141,6 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 ) : (
                   notifications.map((n) => {
-                    const isForUser =
-                      n.targetRole === 'all' ||
-                      n.targetRole === currentUser.role ||
-                      n.targetClassId === currentUser.classId;
-                    if (!isForUser && currentUser.role !== 'admin') return null;
                     return (
                       <div
                         key={n.id}
