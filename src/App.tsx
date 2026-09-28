@@ -79,6 +79,8 @@ const [authLoading, setAuthLoading] = useState(true);
   const [showAvatarModal, setShowAvatarModal] = useState<boolean>(false);
   const isStudent = currentUser?.role === 'student';
   const canManage = currentUser?.role === 'teacher' || currentUser?.role === 'admin';
+  const isCurrentTreasurer = currentUser?.role === 'student' &&
+    ['thủ quỹ', 'thu quy'].includes((currentUser.position || '').trim().toLocaleLowerCase('vi'));
   const isAdmin = currentUser?.role === 'admin';
   const canManageClass = (classId?: string) => {
   if (isAdmin) return true;
@@ -651,10 +653,10 @@ if (authLoading) {
                 classFunds={classFunds}
                 classExpenses={classExpenses}
                 onUpdateClassFunds={funds => {
-  if (!canManage) return;
+  if (!canManage && !isCurrentTreasurer) return;
 
   const allowed = funds.every(fund =>
-    canManageClass(fund.classId)
+    canManageClass(fund.classId) || (isCurrentTreasurer && fund.classId === currentUser.classId)
   );
 
   if (!allowed) return;
@@ -664,10 +666,10 @@ if (authLoading) {
 }}
 
 onUpdateClassExpenses={exps => {
-  if (!canManage) return;
+  if (!canManage && !isCurrentTreasurer) return;
 
   const allowed = exps.every(expense =>
-    canManageClass(expense.classId)
+    canManageClass(expense.classId) || (isCurrentTreasurer && expense.classId === currentUser.classId)
   );
 
   if (!allowed) return;

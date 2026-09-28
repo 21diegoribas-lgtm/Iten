@@ -57,6 +57,11 @@ service cloud.firestore {
         getCurrentUserData().position != 'thành viên';
     }
 
+    function isTreasurer() {
+      return isStudent() && ('position' in getCurrentUserData()) &&
+        getCurrentUserData().position in ['thủ quỹ', 'Thủ quỹ', 'thu quy', 'Thu quy'];
+    }
+
     function teacherManagesClass(classId) {
       return isTeacher() && (
         getUserClassId() == classId ||
@@ -687,7 +692,8 @@ match /teacherWeeklyTimetables/{itemId} {
   );
 
   allow create: if
-    (isAdmin() || teacherManagesClass(request.resource.data.classId)) &&
+    (isAdmin() || teacherManagesClass(request.resource.data.classId) ||
+      (isTreasurer() && request.resource.data.classId == getUserClassId())) &&
     request.resource.data.id == itemId &&
     request.resource.data.classId is string &&
     request.resource.data.className is string &&
@@ -723,7 +729,8 @@ match /teacherWeeklyTimetables/{itemId} {
   allow update: if
     (
       isAdmin() ||
-      teacherManagesClass(resource.data.classId)
+      teacherManagesClass(resource.data.classId) ||
+      (isTreasurer() && resource.data.classId == getUserClassId())
     ) &&
     request.resource.data.id == resource.data.id &&
     request.resource.data.classId == resource.data.classId &&
@@ -733,7 +740,8 @@ match /teacherWeeklyTimetables/{itemId} {
 
   allow delete: if
     isAdmin() ||
-    teacherManagesClass(resource.data.classId);
+    teacherManagesClass(resource.data.classId) ||
+    (isTreasurer() && resource.data.classId == getUserClassId());
 }
 
 match /classExpenses/{itemId} {
@@ -744,7 +752,8 @@ match /classExpenses/{itemId} {
   );
 
   allow create: if
-    (isAdmin() || teacherManagesClass(request.resource.data.classId)) &&
+    (isAdmin() || teacherManagesClass(request.resource.data.classId) ||
+      (isTreasurer() && request.resource.data.classId == getUserClassId())) &&
     request.resource.data.id == itemId &&
     request.resource.data.classId is string &&
     request.resource.data.className is string &&
@@ -775,7 +784,8 @@ match /classExpenses/{itemId} {
   allow update: if
     (
       isAdmin() ||
-      teacherManagesClass(resource.data.classId)
+      teacherManagesClass(resource.data.classId) ||
+      (isTreasurer() && resource.data.classId == getUserClassId())
     ) &&
     request.resource.data.id == resource.data.id &&
     request.resource.data.classId == resource.data.classId &&
@@ -784,7 +794,8 @@ match /classExpenses/{itemId} {
 
   allow delete: if
     isAdmin() ||
-    teacherManagesClass(resource.data.classId);
+    teacherManagesClass(resource.data.classId) ||
+    (isTreasurer() && resource.data.classId == getUserClassId());
 }
 
       match /classLogbooks/{itemId} {

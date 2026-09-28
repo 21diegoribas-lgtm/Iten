@@ -100,21 +100,15 @@ export const ClassFundManager: React.FC<ClassFundManagerProps> = ({
   const isTeacherOrAdmin = currentUser.role === 'teacher' || currentUser.role === 'admin';
   const posLower = (currentUser.position || '').toLowerCase();
   const isTreasurer = posLower.includes('thủ quỹ') || posLower.includes('thu quy');
-  const isClassLeader = posLower.includes('lớp trưởng') || posLower.includes('lớp phó');
-  const isTeamLeader = posLower.includes('tổ trưởng') || posLower.includes('to truong');
-  const isOfficer = isTreasurer || isClassLeader;
 
   // Can manage all class payments & create fund rounds
-  const canManageAll = isTeacherOrAdmin || isOfficer;
+  const canManageAll = isTeacherOrAdmin || isTreasurer;
   // Can create new fund round
-  const canCreateFund = isTeacherOrAdmin || isTreasurer || isClassLeader || isTeamLeader;
-  // Can mark payment for students (Team leaders can mark their team or all)
-  const canMarkPayment = isTeacherOrAdmin || isOfficer || isTeamLeader;
+  const canCreateFund = isTeacherOrAdmin || isTreasurer;
+  // Only staff and the class treasurer can mark payments.
+  const canMarkPayment = isTeacherOrAdmin || isTreasurer;
   // Can add expense records
-  const canManageExpenses = isTeacherOrAdmin || isTreasurer || isClassLeader;
-
-  // Current user's team if student
-  const userTeam = currentUser.team || '';
+  const canManageExpenses = isTeacherOrAdmin || isTreasurer;
 
   // Class list filter (for class 8A1 or user's class)
   const currentClassName = currentUser.className || '';
@@ -347,7 +341,7 @@ export const ClassFundManager: React.FC<ClassFundManagerProps> = ({
       amountPerStudent: newFundAmount,
       dueDate: newFundDueDate,
       createdAt: new Date().toISOString().substring(0, 10),
-      createdBy: `${currentUser.fullName} (${isTreasurer ? 'Thủ quỹ' : isTeacherOrAdmin ? 'GV' : isTeamLeader ? 'Tổ trưởng' : 'Ban cán sự'})`,
+      createdBy: `${currentUser.fullName} (${isTreasurer ? 'Thủ quỹ' : 'GV/Admin'})`,
       createdById: currentUser.id,
       notes: newFundNotes.trim(),
       status: 'active',
@@ -520,7 +514,7 @@ export const ClassFundManager: React.FC<ClassFundManagerProps> = ({
             <div className="px-3.5 py-2 rounded-2xl bg-black/25 backdrop-blur-md border border-white/20 text-xs font-bold flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-amber-300" />
               <span>
-                Quyền hạn: {isTeacherOrAdmin ? 'Giáo viên / Quản trị' : isTreasurer ? 'Thủ quỹ lớp' : isClassLeader ? 'Ban cán sự lớp' : isTeamLeader ? `Tổ trưởng (${userTeam})` : 'Học sinh'}
+                Quyền hạn: {isTeacherOrAdmin ? 'Giáo viên / Quản trị' : isTreasurer ? 'Thủ quỹ lớp — được quản lý quỹ' : 'Học sinh — chỉ xem'}
               </span>
             </div>
 
@@ -920,16 +914,7 @@ export const ClassFundManager: React.FC<ClassFundManagerProps> = ({
                   {/* Batch Action Buttons for Officers & Teachers */}
                   {canMarkPayment && (
                     <div className="flex items-center gap-1.5">
-                      {isTeamLeader && userTeam && !canManageAll ? (
-                        <button
-                          type="button"
-                          onClick={() => handleMarkTeamAsPaid(userTeam, true)}
-                          className="px-3 py-1.5 bg-emerald-600 text-white font-bold rounded-xl text-xs hover:bg-emerald-700 transition-all cursor-pointer flex items-center gap-1"
-                        >
-                          <Check className="w-3.5 h-3.5" /> Đánh dấu {userTeam} đã đóng
-                        </button>
-                      ) : (
-                        <>
+                      <>
                           <button
                             type="button"
                             onClick={() => handleMarkTeamAsPaid('all', true)}
@@ -944,8 +929,7 @@ export const ClassFundManager: React.FC<ClassFundManagerProps> = ({
                           >
                             Bỏ chọn tất cả
                           </button>
-                        </>
-                      )}
+                      </>
                     </div>
                   )}
                 </div>
@@ -980,7 +964,7 @@ export const ClassFundManager: React.FC<ClassFundManagerProps> = ({
                           const isMe = student.id === currentUser.id;
 
                           // Can this user toggle this student?
-                          const canEditThisStudent = canManageAll || (isTeamLeader && student.team === userTeam);
+                          const canEditThisStudent = canManageAll;
 
                           return (
                             <tr 
@@ -1203,7 +1187,7 @@ export const ClassFundManager: React.FC<ClassFundManagerProps> = ({
                           studentPaidRounds++;
                         }
 
-                        const canEditThisStudent = canManageAll || (isTeamLeader && st.team === userTeam);
+                        const canEditThisStudent = canManageAll;
 
                         return (
                           <td 
