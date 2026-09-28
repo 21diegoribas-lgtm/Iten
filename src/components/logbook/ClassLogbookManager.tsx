@@ -1745,7 +1745,7 @@ export const ClassLogbookManager: React.FC<ClassLogbookManagerProps> = ({
               {/* Header */}
               <div className="flex items-start justify-between border-b-2 border-slate-800 pb-4">
                 <div className="text-center">
-                  <p className="text-xs font-bold uppercase tracking-wider">TRƯỜNG THCS CHU VĂN AN</p>
+                  <p className="text-xs font-bold uppercase tracking-wider">TRƯỜNG THPT MẠC ĐĨNH CHI</p>
                   <p className="text-xs font-bold text-slate-700">LỚP: {currentClass.name.toUpperCase()}</p>
                 </div>
                 <div className="text-center">

@@ -39,8 +39,8 @@ const SAMPLE_TOPIC_PRESETS = [
   {
     title: 'Bài viết cảm nhận: Mái trường & Thầy cô kính yêu',
     category: 'Thi đua rèn luyện' as const,
-    prompt: 'Cảm nhận về mái trường THCS Chu Văn An và người thầy cô em yêu quý',
-    instruction: 'Em hãy viết một đoạn văn ngắn chia sẻ những kỷ niệm hoặc tình cảm chân thành của mình về thầy cô, bạn bè và mái trường THCS Chu Văn An. Hãy chú ý mạch cảm xúc và cấu trúc câu rõ ràng.',
+    prompt: 'Cảm nhận về mái trường THPT Mạc Đĩnh Chi và người thầy cô em yêu quý',
+    instruction: 'Em hãy viết một đoạn văn ngắn chia sẻ những kỷ niệm hoặc tình cảm chân thành của mình về thầy cô, bạn bè và mái trường THPT Mạc Đĩnh Chi. Hãy chú ý mạch cảm xúc và cấu trúc câu rõ ràng.',
     minWords: 80,
     maxWords: 150,
     timeLimitMinutes: 20

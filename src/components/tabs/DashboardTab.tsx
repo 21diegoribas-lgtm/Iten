@@ -180,7 +180,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const [addClassForm, setAddClassForm] = useState({
     name: '',
     academicYear: '2025 - 2026',
-    school: 'THCS Chu Văn An',
+    school: 'THPT Mạc Đĩnh Chi',
     homeroomTeacher: currentUser.fullName || '',
     teacherRole: 'Giáo viên chủ nhiệm' as 'Giáo viên chủ nhiệm' | 'Giáo viên bộ môn',
     subject: 'Ngữ văn',
@@ -261,7 +261,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const [teacherBulkText, setTeacherBulkText] = useState('');
   const [teacherForm, setTeacherForm] = useState({
     fullName: '',
-    school: 'THCS Chu Văn An',
+    school: 'THPT Mạc Đĩnh Chi',
     gender: 'Nam' as 'Nam' | 'Nữ',
     dob: '1988-06-20',
     email: '',
@@ -439,7 +439,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
   // New class form
   const [newClassName, setNewClassName] = useState('');
-  const [newClassSchool, setNewClassSchool] = useState('THCS Chu Văn An');
+  const [newClassSchool, setNewClassSchool] = useState('THPT Mạc Đĩnh Chi');
   const [newClassYear, setNewClassYear] = useState('2025 - 2026');
 
   // New student form
@@ -798,7 +798,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         setAddClassForm({
                           name: '',
                           academicYear: selectedAcademicYearFilter !== 'all' ? selectedAcademicYearFilter : '2025 - 2026',
-                          school: 'THCS Chu Văn An',
+                          school: 'THPT Mạc Đĩnh Chi',
                           homeroomTeacher: currentUser.fullName || '',
                           studentCount: 0,
                           maleCount: 0,
@@ -1754,7 +1754,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   setAddClassForm({
                     name: '',
                     academicYear: selectedAcademicYearFilter !== 'all' ? selectedAcademicYearFilter : '2025 - 2026',
-                    school: 'THCS Chu Văn An',
+                    school: 'THPT Mạc Đĩnh Chi',
                     homeroomTeacher: currentUser.fullName || '',
                     studentCount: 0,
                     maleCount: 0,
@@ -2284,7 +2284,7 @@ console.log('[CLASS DEBUG]', {
                 setTeacherImportMode('manual');
                 setTeacherForm({
                   fullName: '',
-                  school: 'THCS Chu Văn An',
+                  school: 'THPT Mạc Đĩnh Chi',
                   gender: 'Nam',
                   dob: '1988-06-20',
                   email: '',
@@ -2327,7 +2327,7 @@ console.log('[CLASS DEBUG]', {
                         <img src={t.avatar || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80'} alt="" className="w-7 h-7 rounded-full object-cover border border-amber-200" />
                         <div>
                           <span className="block font-black text-slate-800">{t.fullName}</span>
-                          <span className="text-[10px] text-slate-400">{t.school || 'THCS Chu Văn An'}</span>
+                          <span className="text-[10px] text-slate-400">{t.school || 'THPT Mạc Đĩnh Chi'}</span>
                         </div>
                       </td>
                       <td className="p-3">
@@ -2350,7 +2350,7 @@ console.log('[CLASS DEBUG]', {
                               setTeacherImportMode('manual');
                               setTeacherForm({
                                 fullName: t.fullName,
-                                school: t.school || 'THCS Chu Văn An',
+                                school: t.school || 'THPT Mạc Đĩnh Chi',
                                 gender: t.gender || 'Nam',
                                 dob: t.dob || '1988-06-20',
                                 email: t.email || '',
@@ -2468,7 +2468,7 @@ console.log('[CLASS DEBUG]', {
                 const classData = {
                   id: editingClass ? editingClass.id : ('c_' + Date.now()),
                   name: addClassForm.name.trim(),
-                  school: addClassForm.school || 'THCS Chu Văn An',
+                  school: addClassForm.school || 'THPT Mạc Đĩnh Chi',
                   academicYear: addClassForm.academicYear || '2025 - 2026',
                   homeroomTeacher: addClassForm.homeroomTeacher || currentUser.fullName,
                   teacherRole: addClassForm.teacherRole,
@@ -2713,7 +2713,7 @@ console.log('[CLASS DEBUG]', {
                     dob: addStudentForm.dob || '2012-05-15',
                     phone: addStudentForm.phone || '0912345678',
                     address: addStudentForm.address || 'Hà Nội',
-                    school: matchedClassObj?.school || 'THCS Chu Văn An',
+                    school: matchedClassObj?.school || 'THPT Mạc Đĩnh Chi',
                     classId: classId,
                     className: assignedClass,
                     academicYear: addStudentForm.academicYear || matchedClassObj?.academicYear || '2025 - 2026',
@@ -3115,7 +3115,7 @@ console.log('[CLASS DEBUG]', {
                     fullName: teacherForm.fullName.trim(),
                     role: 'teacher',
                     password: teacherForm.password || '123456',
-                    school: teacherForm.school || 'THCS Chu Văn An',
+                    school: teacherForm.school || 'THPT Mạc Đĩnh Chi',
                     gender: teacherForm.gender,
                     dob: teacherForm.dob,
                     email: resolvedEmail,
@@ -3323,7 +3323,7 @@ console.log('[CLASS DEBUG]', {
                         teacherRole: (parts[2] || 'giáo viên bộ môn') as any,
                         phone: parts[3] || '0987654321',
                         email: parts[4] || `gv${idx}@iten.edu.vn`,
-                        school: 'THCS Chu Văn An'
+                        school: 'THPT Mạc Đĩnh Chi'
                       };
                     });
                     if (onAddTeachersBulk) onAddTeachersBulk(newTeachers);

@@ -240,7 +240,7 @@ export const SpyDetectiveScene: React.FC<SpyDetectiveSceneProps> = ({
               </span>
             </div>
             <p className="text-xs text-slate-300/80 mt-0.5">
-              Phòng điều tra mật THCS Chu Văn An • Mỗi thám tử sở hữu 3 phiếu nghi vấn
+              Phòng điều tra mật THPT Mạc Đĩnh Chi • Mỗi thám tử sở hữu 3 phiếu nghi vấn
             </p>
           </div>
         </div>
