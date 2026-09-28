@@ -609,7 +609,7 @@ if (authLoading) {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f8fc] flex flex-col font-sans text-slate-900 selection:bg-blue-200">
+    <div className={`iten-app iten-role-${currentUser.role} min-h-screen bg-[#f6f8fc] flex flex-col font-sans text-slate-900 selection:bg-blue-200`}>
       {/* Top Header */}
       <Header
         currentUser={currentUser}

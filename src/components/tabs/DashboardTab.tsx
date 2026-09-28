@@ -529,16 +529,31 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     );
   }
 };
+  const dashboardStats = currentUser.role === 'student'
+    ? [
+        { icon: '⭐', label: 'Điểm học tập', value: learningRecords.filter(item => item.studentId === currentUser.id && item.points > 0).reduce((sum, item) => sum + item.points, 0), tone: 'blue' },
+        { icon: '🛡️', label: 'Điểm rèn luyện', value: 100 + disciplineRecords.filter(item => item.studentId === currentUser.id).reduce((sum, item) => sum + item.points, 0), tone: 'emerald' },
+        { icon: '🔔', label: 'Thông báo', value: notifications.length, tone: 'amber' },
+        { icon: '🗓️', label: 'Ngày có lịch', value: timetable.schedule.length, tone: 'violet' },
+      ]
+    : [
+        { icon: '🏫', label: 'Lớp phụ trách', value: classesList.length, tone: 'blue' },
+        { icon: '🎓', label: 'Học sinh', value: students.length, tone: 'emerald' },
+        { icon: '🔔', label: 'Thông báo', value: notifications.length, tone: 'amber' },
+        { icon: '💼', label: 'Lịch công việc', value: teacherSchedules?.filter(item => currentUser.role === 'admin' || item.teacherId === currentUser.id).length || 0, tone: 'violet' },
+      ];
+
   return (
-    <div className="space-y-4 sm:space-y-5 lg:space-y-6 w-full min-w-0 max-w-full">
+    <div className="iten-dashboard space-y-4 sm:space-y-5 lg:space-y-6 w-full min-w-0 max-w-full">
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-amber-400 via-orange-400 to-pink-500 rounded-2xl sm:rounded-3xl p-4 sm:p-5 lg:p-6 text-white shadow-xl relative overflow-hidden w-full">
-        <div className="absolute right-2 -bottom-4 sm:right-4 sm:-bottom-6 text-6xl sm:text-7xl lg:text-9xl opacity-15 sm:opacity-20 select-none pointer-events-none">🏫</div>
+      <div className="bg-[radial-gradient(circle_at_top_right,_rgba(96,165,250,0.35),_transparent_32%),linear-gradient(120deg,#0f172a,#1e3a8a_55%,#312e81)] rounded-[1.75rem] p-5 sm:p-7 lg:p-8 text-white shadow-[0_24px_60px_rgba(30,58,138,0.22)] relative overflow-hidden w-full border border-white/10">
+        <div className="absolute -right-8 -bottom-12 w-52 h-52 rounded-full bg-blue-400/20 blur-2xl pointer-events-none" />
+        <div className="absolute right-8 top-5 text-6xl sm:text-7xl opacity-15 select-none pointer-events-none">🏫</div>
         <div className="relative z-10 min-w-0">
-          <span className="inline-block px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-white/25 text-[10px] sm:text-xs font-bold uppercase tracking-wider backdrop-blur-md max-w-full truncate">
+          <span className="inline-block px-3 py-1 rounded-full bg-white/10 border border-white/15 text-[10px] sm:text-xs font-bold uppercase tracking-[0.12em] backdrop-blur-md max-w-full truncate">
             ✨ Chào mừng trở lại, {currentUser.fullName}!
           </span>
-          <h2 className="text-lg sm:text-2xl lg:text-3xl font-black mt-1.5 sm:mt-2 mb-0.5 sm:mb-1 tracking-tight">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black mt-3 mb-1 tracking-tight leading-tight">
             Trung tâm quản lý ITEN
           </h2>
           <p className="text-xs sm:text-sm font-medium text-white/95 max-w-2xl line-clamp-2 sm:line-clamp-none">
@@ -552,7 +567,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       </div>
 
       {/* Quick Navigation Tabs for Dashboard */}
-      <div className="grid grid-cols-2 lg:flex lg:flex-wrap gap-2 bg-white/80 backdrop-blur-md p-2 rounded-2xl border border-amber-100 shadow-xs w-full min-w-0">
+      <div className="dashboard-subnav flex gap-2 overflow-x-auto bg-white/90 backdrop-blur-md p-2 rounded-2xl border border-slate-200 shadow-sm w-full min-w-0">
         <button
           onClick={() => { soundFx.playClick(); setActiveSubView('overview'); }}
           className={`w-full min-w-0 px-2.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center sm:justify-start gap-1.5 truncate ${
@@ -686,6 +701,22 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
       {/* OVERVIEW SUB-VIEW */}
       {activeSubView === 'overview' && (
+        <div className="space-y-5 sm:space-y-6">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+            {dashboardStats.map(stat => (
+              <div key={stat.label} className={`iten-stat iten-stat-${stat.tone} group relative overflow-hidden rounded-2xl border bg-white p-4 sm:p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] sm:text-xs font-extrabold uppercase tracking-[0.08em] text-slate-500">{stat.label}</p>
+                    <p className="mt-2 text-2xl sm:text-3xl font-black tracking-tight text-slate-900">{stat.value}</p>
+                  </div>
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-xl shadow-inner">{stat.icon}</span>
+                </div>
+                <div className="absolute inset-x-0 bottom-0 h-1 bg-current opacity-70" />
+              </div>
+            ))}
+          </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 w-full min-w-0 max-w-full">
           {/* Left / Main Column */}
           <div className="lg:col-span-2 space-y-4 sm:space-y-6 min-w-0">
@@ -1064,6 +1095,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               )}
             </div>
           </div>
+        </div>
         </div>
       )}
 

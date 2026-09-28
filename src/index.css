@@ -63,6 +63,56 @@
 }
 
 @layer components {
+  .iten-app main .bg-white[class*='rounded-'] {
+    border-color: rgba(226, 232, 240, 0.95);
+    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.055);
+  }
+
+  .iten-app main .bg-white[class*='rounded-']:not(button) {
+    transition: box-shadow 180ms ease, border-color 180ms ease, transform 180ms ease;
+  }
+
+  .iten-app main button {
+    line-height: 1.25rem;
+  }
+
+  .iten-app main button:not(:disabled) {
+    transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 120ms ease;
+  }
+
+  .iten-app main button:not(:disabled):active {
+    transform: translateY(1px) scale(0.985);
+  }
+
+  .dashboard-subnav {
+    scrollbar-width: none;
+  }
+
+  .dashboard-subnav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dashboard-subnav > button {
+    width: auto !important;
+    min-width: max-content !important;
+    flex: 0 0 auto;
+    padding-inline: 1rem;
+    white-space: nowrap;
+  }
+
+  .dashboard-subnav > button[class*='bg-amber-500'],
+  .dashboard-subnav > button[class*='from-amber-500'] {
+    color: #fff;
+    border-color: #2563eb;
+    background: linear-gradient(135deg, #2563eb, #4f46e5);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.2);
+  }
+
+  .iten-stat-blue { color: #2563eb; border-color: #bfdbfe !important; }
+  .iten-stat-emerald { color: #059669; border-color: #a7f3d0 !important; }
+  .iten-stat-amber { color: #d97706; border-color: #fde68a !important; }
+  .iten-stat-violet { color: #7c3aed; border-color: #ddd6fe !important; }
+
   main :where(input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea) {
     border-color: var(--iten-border);
     background-color: #fff;
@@ -96,6 +146,13 @@
     color: #334155;
   }
 
+  main table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f1f5f9;
+  }
+
   main table th {
     font-weight: 800;
     letter-spacing: 0.015em;
@@ -122,6 +179,14 @@
 
   .fixed.inset-0 > div {
     box-shadow: 0 24px 80px rgba(15, 23, 42, 0.22);
+  }
+
+  .iten-app main :where(.bg-rose-50, .bg-red-50) {
+    border-color: #fecdd3;
+  }
+
+  .iten-app main :where(.bg-emerald-50, .bg-green-50) {
+    border-color: #a7f3d0;
   }
 }
 

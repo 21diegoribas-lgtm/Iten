@@ -51,10 +51,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, curren
   ];
 
   return (
-    <aside className="w-72 bg-white border-r border-slate-200 p-4 flex flex-col shrink-0 min-h-[calc(100vh-4.5rem)] shadow-[8px_0_30px_rgba(15,23,42,0.035)] select-none">
+    <aside className="w-72 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 border-r border-slate-800 p-4 flex flex-col shrink-0 min-h-[calc(100vh-4.5rem)] shadow-[12px_0_35px_rgba(15,23,42,0.12)] select-none">
       {/* Top User Chibi Profile Badge */}
       {currentUser && (
-        <div className="mb-5 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 shadow-sm flex items-center gap-3">
+        <div className="mb-5 p-3.5 rounded-2xl bg-white/8 border border-white/10 shadow-lg flex items-center gap-3 backdrop-blur-sm">
           <button
             type="button"
             onClick={() => {
@@ -78,11 +78,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, curren
           </button>
 
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-black text-blue-600 uppercase tracking-wider flex items-center gap-1">
+            <div className="text-[10px] font-black text-blue-300 uppercase tracking-wider flex items-center gap-1">
               <span>Xin chào,</span>
               <span className="text-amber-500">✨</span>
             </div>
-            <div className="text-sm font-black text-slate-800 truncate">
+            <div className="text-sm font-black text-white truncate">
               {currentUser.fullName}
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">
@@ -123,16 +123,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, curren
               }}
               className={`relative w-full min-h-12 text-left px-3 py-2.5 rounded-xl flex items-center gap-3 border transition-all duration-200 active:scale-[0.99] cursor-pointer select-none ${
                 isActive
-                  ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm'
-                  : 'bg-transparent text-slate-600 border-transparent hover:bg-slate-50 hover:text-slate-900'
+                  ? 'bg-blue-600 text-white border-blue-400/60 shadow-lg shadow-blue-950/30'
+                  : 'bg-transparent text-slate-300 border-transparent hover:bg-white/8 hover:text-white'
               }`}
             >
               {isActive && <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-blue-600" />}
               <div
                 className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
                   isActive
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-slate-100 text-slate-500'
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'bg-white/8 text-slate-300'
                 }`}
               >
                 <Icon className="w-[18px] h-[18px]" aria-hidden="true" />
@@ -149,12 +149,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, curren
       </nav>
 
       {/* Mascot Card at bottom */}
-      <div className="mt-4 p-3.5 rounded-2xl bg-gradient-to-br from-amber-50 to-blue-50 border border-amber-200/80 text-center relative overflow-hidden shadow-sm">
+      <div className="mt-4 p-3.5 rounded-2xl bg-gradient-to-br from-amber-400/15 to-blue-400/15 border border-white/10 text-center relative overflow-hidden shadow-sm">
         <div className="flex items-center justify-center gap-2 mb-1">
           <span className="text-xl">🦊</span>
-          <span className="text-xs font-black text-amber-900">ITEN Mascot</span>
+          <span className="text-xs font-black text-amber-200">ITEN Mascot</span>
         </div>
-        <p className="text-[11px] font-bold text-amber-800 leading-snug">
+        <p className="text-[11px] font-bold text-slate-300 leading-snug">
           "Cùng rèn luyện & khám phá kiến thức mỗi ngày nhé!"
         </p>
       </div>
