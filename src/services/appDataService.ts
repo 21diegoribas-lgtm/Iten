@@ -1,4 +1,4 @@
-import { collection, deleteDoc, doc, getDocs, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, onSnapshot, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 export type AppCollectionName =
@@ -11,6 +11,22 @@ export async function loadAppCollection<T>(name: AppCollectionName, field?: stri
   const ref = collection(db, name);
   const snapshot = field && value ? await getDocs(query(ref, where(field, '==', value))) : await getDocs(ref);
   return snapshot.docs.map(item => ({ ...item.data(), id: item.id }) as T);
+}
+
+export function subscribeAppCollection<T>(
+  name: AppCollectionName,
+  onData: (items: T[]) => void,
+  onError: (error: Error) => void,
+  field?: string,
+  value?: string,
+): () => void {
+  const ref = collection(db, name);
+  const source = field && value ? query(ref, where(field, '==', value)) : ref;
+  return onSnapshot(
+    source,
+    snapshot => onData(snapshot.docs.map(item => ({ ...item.data(), id: item.id }) as T)),
+    error => onError(error),
+  );
 }
 
 export async function saveAppDocument<T extends { id: string }>(name: AppCollectionName, value: T): Promise<void> {

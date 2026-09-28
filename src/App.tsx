@@ -36,7 +36,7 @@ import { castSpyVote, clearAllSpyVotes, finishSpyMissionAndAward, getSpyMission,
 import { awardAttendancePoints, loadAttendanceRecords, saveAttendanceRecords } from './services/attendanceService';
 import { activityPointToDisciplineRecord, activityPointToLearningRecord, loadActivityPointsForClass, loadActivityPointsForUser } from './services/activityPointService';
 import { createEmptyCleaningSchedule, getCleaningSchedule, saveCleaningSchedule } from './services/cleaningScheduleService';
-import { deleteAppDocument, loadAppCollection, saveAppDocument, type AppCollectionName } from './services/appDataService';
+import { deleteAppDocument, loadAppCollection, saveAppDocument, subscribeAppCollection, type AppCollectionName } from './services/appDataService';
 
 const emptyTimetable = (classId = ''): TimetableEntry => ({
   id: classId ? `timetable_${classId}` : '', classId, semester: 'Học kỳ 1', weekNumber: 1, startDate: '', schedule: [],
@@ -445,9 +445,6 @@ useEffect(() => {
       currentUser.role === 'student'
         ? loadAppCollection<Complaint>('complaints', 'studentId', currentUser.id)
         : scoped<Complaint>('complaints', 'className', className),
-      currentUser.role === 'student'
-        ? loadAppCollection<AccountRequest>('accountRequests', 'userId', currentUser.id)
-        : loadAppCollection<AccountRequest>('accountRequests'),
       loadAppCollection<PersonalStorageItem>('personalStorageItems', 'userId', currentUser.id),
       scoped<ClassFundItem>('classFunds', 'classId', classId),
       scoped<ClassFundExpense>('classExpenses', 'classId', classId),
@@ -455,24 +452,43 @@ useEffect(() => {
       currentUser.role === 'student'
         ? loadAppCollection<PointUsageTransaction>('pointUsageTransactions', 'studentId', currentUser.id)
         : scoped<PointUsageTransaction>('pointUsageTransactions', 'className', className),
-    ]).then(([loadedTimetables, schedules, weekly, loadedComplaints, requests, storage, funds, expenses, books, usages]) => {
+    ]).then(([loadedTimetables, schedules, weekly, loadedComplaints, storage, funds, expenses, books, usages]) => {
       if (cancelled) return;
       setTimetables(loadedTimetables);
       setTimetable(loadedTimetables[0] || emptyTimetable(classId));
       setTeacherSchedules(schedules); setTeacherWeeklyTimetables(weekly); setComplaints(loadedComplaints);
-      setAccountRequests(requests); setStorageItems(storage); setClassFunds(funds); setClassExpenses(expenses);
+      setStorageItems(storage); setClassFunds(funds); setClassExpenses(expenses);
       setLogbooks(books); setPointUsageTransactions(usages);
     }).catch(error => {
       console.error('[Load Firestore App Data Error]', error);
       if (!cancelled) {
         setTimetable(emptyTimetable(classId)); setTimetables([]); setTeacherSchedules([]); setTeacherWeeklyTimetables([]);
-        setComplaints([]); setAccountRequests([]); setStorageItems([]); setClassFunds([]); setClassExpenses([]);
+        setComplaints([]); setStorageItems([]); setClassFunds([]); setClassExpenses([]);
         setLogbooks([]); setPointUsageTransactions([]);
       }
     });
 
     return () => { cancelled = true; };
   }, [currentUser?.id, currentUser?.role, currentUser?.classId, currentUser?.className]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setAccountRequests([]);
+      return;
+    }
+
+    const isStudent = currentUser.role === 'student';
+    return subscribeAppCollection<AccountRequest>(
+      'accountRequests',
+      setAccountRequests,
+      error => {
+        console.error('[Subscribe Account Requests Error]', error);
+        setAccountRequests([]);
+      },
+      isStudent ? 'userId' : undefined,
+      isStudent ? currentUser.id : undefined,
+    );
+  }, [currentUser?.id, currentUser?.role]);
 
   const handleAddPointUsageTransaction = (tx: PointUsageTransaction) => {
   if (!canManage) return;
