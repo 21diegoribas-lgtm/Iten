@@ -332,10 +332,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     return map;
   }, [classesList]);
 
+  // classId is the canonical relationship. Only fall back to className for
+  // legacy student records that do not have a classId yet.
+  const studentBelongsToClass = (student: User, classItem: any) =>
+    student.classId ? student.classId === classItem.id : student.className === classItem.name;
+
   // Augmented classes list with dynamically computed student counts
   const augmentedClassesList = useMemo(() => {
     return classesList.map(cls => {
-      const matchingStudents = students.filter(st => st.className === cls.name || st.classId === cls.id);
+      const matchingStudents = students.filter(st => studentBelongsToClass(st, cls));
       return {
         ...cls,
         studentCount: matchingStudents.length,
@@ -355,13 +360,20 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
   // Filtered students by Academic Year, Class, Team, and Search Query
   const filteredStudentsList = useMemo(() => {
+    const selectedClass = classesList.find(
+      classItem => classItem.id === selectedClassFilter || classItem.name === selectedClassFilter
+    );
     return students
       .filter(st => {
         const stClass = st.className || 'Chưa gán lớp';
         const stAcademicYear = st.academicYear || classAcademicYearMap[stClass] || classAcademicYearMap[st.classId || ''] || '2025 - 2026';
 
         const matchesYear = selectedAcademicYearFilter === 'all' || stAcademicYear === selectedAcademicYearFilter;
-        const matchesClass = selectedClassFilter === 'all' || stClass === selectedClassFilter || st.classId === selectedClassFilter;
+        const matchesClass = selectedClassFilter === 'all' || (
+          selectedClass
+            ? studentBelongsToClass(st, selectedClass)
+            : (st.classId ? st.classId === selectedClassFilter : stClass === selectedClassFilter)
+        );
         const matchesSearch = !studentSearchQuery ||
                               st.fullName.toLowerCase().includes(studentSearchQuery.toLowerCase()) ||
                               (st.phone && st.phone.includes(studentSearchQuery)) ||
@@ -370,7 +382,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         return matchesYear && matchesClass && matchesSearch && matchesTeam;
       })
       .sort((a, b) => a.fullName.localeCompare(b.fullName, 'vi', { sensitivity: 'base' }));
-  }, [students, selectedAcademicYearFilter, selectedClassFilter, studentSearchQuery, selectedTeamFilter, classAcademicYearMap]);
+  }, [students, classesList, selectedAcademicYearFilter, selectedClassFilter, studentSearchQuery, selectedTeamFilter, classAcademicYearMap]);
 
   const exportFilteredStudents = () => {
     if (!filteredStudentsList.length) {
@@ -397,11 +409,18 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
   // Statistical metrics for selected academic year and class filter
   const classStatsSummary = useMemo(() => {
+    const selectedClass = classesList.find(
+      classItem => classItem.id === selectedClassFilter || classItem.name === selectedClassFilter
+    );
     const classStudents = students.filter(st => {
       const stClass = st.className || 'Chưa gán lớp';
       const stAcademicYear = st.academicYear || classAcademicYearMap[stClass] || classAcademicYearMap[st.classId || ''] || '2025 - 2026';
       const matchesYear = selectedAcademicYearFilter === 'all' || stAcademicYear === selectedAcademicYearFilter;
-      const matchesClass = selectedClassFilter === 'all' || stClass === selectedClassFilter || st.classId === selectedClassFilter;
+      const matchesClass = selectedClassFilter === 'all' || (
+        selectedClass
+          ? studentBelongsToClass(st, selectedClass)
+          : (st.classId ? st.classId === selectedClassFilter : stClass === selectedClassFilter)
+      );
       return matchesYear && matchesClass;
     });
     const total = classStudents.length;
@@ -413,7 +432,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     const t3 = classStudents.filter(s => s.team === 'Tổ 3').length;
     const t4 = classStudents.filter(s => s.team === 'Tổ 4').length;
     return { total, male, female, union, t1, t2, t3, t4 };
-  }, [students, selectedAcademicYearFilter, selectedClassFilter, classAcademicYearMap]);
+  }, [students, classesList, selectedAcademicYearFilter, selectedClassFilter, classAcademicYearMap]);
   const [selectedSemester, setSelectedSemester] = useState<'Học kỳ 1' | 'Học kỳ 2'>(timetable.semester || 'Học kỳ 1');
   const [selectedTimetableWeek, setSelectedTimetableWeek] = useState<number>(timetable.weekNumber);
 
@@ -1858,20 +1877,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               {filteredClassesList.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredClassesList.map((cls) => {
-		
-console.log('[CLASS DEBUG]', {
-  classId: cls.id,
-  className: cls.name,
-  studentsCount: students.length,
-  students: students.map(st => ({
-    id: st.id,
-    classId: st.classId,
-    className: st.className,
-    fullName: st.fullName,
-  })),
-});
-
-
                     const isSelected = selectedClassFilter === cls.name;
                     return (
                       <div
