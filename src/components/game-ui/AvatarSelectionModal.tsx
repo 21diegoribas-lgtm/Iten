@@ -69,7 +69,12 @@ export const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
       await onConfirm(selectedId);
     } catch (error) {
       console.error('[Avatar Save Error]', error);
-      setSaveError('Không thể lưu avatar. Vui lòng kiểm tra kết nối rồi thử lại.');
+      const message = error instanceof Error ? error.message : '';
+      setSaveError(message.includes('permission-denied') || message.includes('Missing or insufficient permissions')
+        ? 'Firestore chưa cấp quyền đổi avatar cho tài khoản này.'
+        : message.includes('not-found')
+          ? 'Không tìm thấy hồ sơ tài khoản để lưu avatar.'
+          : 'Không thể lưu avatar. Vui lòng kiểm tra kết nối rồi thử lại.');
     } finally {
       setIsSaving(false);
     }

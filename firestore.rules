@@ -107,6 +107,12 @@ service cloud.firestore {
   isAdmin() ||
   (
     isOwner(userId) &&
+    request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+      'avatar', 'avatarId', 'updatedAt'
+    ])
+  ) ||
+  (
+    isOwner(userId) &&
     request.resource.data.role == resource.data.role &&
     request.resource.data.classId == resource.data.classId
   )
