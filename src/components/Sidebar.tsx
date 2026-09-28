@@ -16,66 +16,45 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, curren
     {
       id: 'dashboard' as MainTabType,
       label: 'Trang chủ',
-      emoji: '🏰',
       icon: LayoutDashboard,
-      activeBg: 'bg-gradient-to-b from-[#38BDF8] to-[#0284C7] text-white border-2 border-[#BAE6FD] shadow-[0_5px_0_#0369A1]',
-      hoverBg: 'hover:bg-sky-50 text-slate-700 bg-white/80 border border-sky-100 shadow-[0_2px_0_#BAE6FD]'
     },
     {
       id: 'training_competition' as MainTabType,
       label: 'Điểm rèn luyện',
-      emoji: '🛡️',
       icon: Award,
-      activeBg: 'bg-gradient-to-b from-[#4ADE80] to-[#16A34A] text-white border-2 border-[#BBF7D0] shadow-[0_5px_0_#14532D]',
-      hoverBg: 'hover:bg-emerald-50 text-slate-700 bg-white/80 border border-emerald-100 shadow-[0_2px_0_#A7F3D0]'
     },
     {
       id: 'learning_competition' as MainTabType,
       label: 'Điểm học tập',
-      emoji: '📚',
       icon: BookOpen,
-      activeBg: 'bg-gradient-to-b from-[#FBBF24] to-[#D97706] text-white border-2 border-[#FEF3C7] shadow-[0_5px_0_#92400E]',
-      hoverBg: 'hover:bg-amber-50 text-slate-700 bg-white/80 border border-amber-100 shadow-[0_2px_0_#FDE68A]'
     },
     {
       id: 'activities' as MainTabType,
       label: 'Hoạt động',
-      emoji: '🎮',
       icon: Sparkles,
-      activeBg: 'bg-gradient-to-b from-[#FB923C] to-[#EA580C] text-white border-2 border-[#FFEDD5] shadow-[0_5px_0_#9A3412]',
-      hoverBg: 'hover:bg-orange-50 text-slate-700 bg-white/80 border border-orange-100 shadow-[0_2px_0_#FED7AA]'
     },
     {
       id: 'online_tests' as MainTabType,
       label: 'Kiểm tra online',
-      emoji: '📝',
       icon: ClipboardCheck,
-      activeBg: 'bg-gradient-to-b from-[#6366F1] to-[#4338CA] text-white border-2 border-[#C7D2FE] shadow-[0_5px_0_#312E81]',
-      hoverBg: 'hover:bg-indigo-50 text-slate-700 bg-white/80 border border-indigo-100 shadow-[0_2px_0_#C7D2FE]'
     },
     {
       id: 'requests' as MainTabType,
       label: 'Yêu cầu',
-      emoji: '📨',
       icon: Inbox,
-      activeBg: 'bg-gradient-to-b from-[#F472B6] to-[#DB2777] text-white border-2 border-[#FBCFE8] shadow-[0_5px_0_#9D174D]',
-      hoverBg: 'hover:bg-pink-50 text-slate-700 bg-white/80 border border-pink-100 shadow-[0_2px_0_#FBCFE8]'
     },
     {
       id: 'utilities' as MainTabType,
       label: 'Tiện ích',
-      emoji: '🧰',
       icon: Wrench,
-      activeBg: 'bg-gradient-to-b from-[#C084FC] to-[#9333EA] text-white border-2 border-[#F3E8FF] shadow-[0_5px_0_#6B21A8]',
-      hoverBg: 'hover:bg-purple-50 text-slate-700 bg-white/80 border border-purple-100 shadow-[0_2px_0_#E9D5FF]'
     }
   ];
 
   return (
-    <aside className="w-72 bg-gradient-to-b from-[#E0F2FE]/90 via-[#F0F9FF] to-[#FEF3C7]/60 border-r-4 border-[#BAE6FD] p-4 flex flex-col shrink-0 min-h-[calc(100vh-4.5rem)] shadow-lg select-none">
+    <aside className="w-72 bg-white border-r border-slate-200 p-4 flex flex-col shrink-0 min-h-[calc(100vh-4.5rem)] shadow-[8px_0_30px_rgba(15,23,42,0.035)] select-none">
       {/* Top User Chibi Profile Badge */}
       {currentUser && (
-        <div className="mb-5 p-3.5 rounded-3xl bg-white/95 border-2 border-[#BAE6FD] shadow-[0_4px_0_#7DD3FC] flex items-center gap-3">
+        <div className="mb-5 p-3.5 rounded-2xl bg-slate-50 border border-slate-200 shadow-sm flex items-center gap-3">
           <button
             type="button"
             onClick={() => {
@@ -84,7 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, curren
                 onOpenAvatarSelection();
               }
             }}
-            className="relative w-13 h-13 rounded-2xl overflow-hidden bg-sky-100 border-2 border-sky-300 shadow-sm shrink-0 hover:scale-105 transition-transform cursor-pointer group"
+            className="relative w-13 h-13 rounded-2xl overflow-hidden bg-blue-50 border border-blue-200 shadow-sm shrink-0 hover:scale-[1.03] transition-transform cursor-pointer group"
             title="Đổi Avatar Chibi"
           >
             <img
@@ -99,7 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, curren
           </button>
 
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-black text-[#0284C7] uppercase tracking-wider flex items-center gap-1">
+            <div className="text-[10px] font-black text-blue-600 uppercase tracking-wider flex items-center gap-1">
               <span>Xin chào,</span>
               <span className="text-amber-500">✨</span>
             </div>
@@ -131,10 +110,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, curren
         </div>
       )}
 
-      {/* 5 Main Navigation Tabs with 3D Cartoon Chunky Buttons */}
-      <nav className="space-y-2.5 flex-1">
+      <nav className="space-y-1.5 flex-1" aria-label="Điều hướng chính">
         {tabs.map((t) => {
           const isActive = activeTab === t.id;
+          const Icon = t.icon;
           return (
             <button
               key={t.id}
@@ -142,36 +121,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, curren
                 soundFx.playClick();
                 onTabChange(t.id);
               }}
-              className={`w-full text-left p-3 rounded-2xl flex items-center gap-3 transition-all duration-100 transform active:translate-y-1 cursor-pointer select-none ${
-                isActive ? t.activeBg : t.hoverBg
+              className={`relative w-full min-h-12 text-left px-3 py-2.5 rounded-xl flex items-center gap-3 border transition-all duration-200 active:scale-[0.99] cursor-pointer select-none ${
+                isActive
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm'
+                  : 'bg-transparent text-slate-600 border-transparent hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
+              {isActive && <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-blue-600" />}
               <div
-                className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 transition-transform ${
+                className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
                   isActive
-                    ? 'bg-white/20 shadow-inner rotate-3'
-                    : 'bg-slate-100 text-slate-600'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-500'
                 }`}
               >
-                <span>{t.emoji}</span>
+                <Icon className="w-[18px] h-[18px]" aria-hidden="true" />
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className={`font-black text-sm tracking-wide ${isActive ? 'text-white drop-shadow-xs' : 'text-slate-800'}`}>
+                <div className="font-extrabold text-sm tracking-normal leading-5 whitespace-nowrap">
                   {t.label}
                 </div>
               </div>
-
-              {isActive && (
-                <div className="w-2.5 h-2.5 rounded-full bg-white animate-ping shrink-0 mr-1" />
-              )}
             </button>
           );
         })}
       </nav>
 
       {/* Mascot Card at bottom */}
-      <div className="mt-4 p-3.5 rounded-3xl bg-gradient-to-br from-[#FEF3C7] via-[#FFFBEB] to-[#E0F2FE] border-2 border-[#FDE68A] text-center relative overflow-hidden shadow-[0_4px_0_#FCD34D]">
+      <div className="mt-4 p-3.5 rounded-2xl bg-gradient-to-br from-amber-50 to-blue-50 border border-amber-200/80 text-center relative overflow-hidden shadow-sm">
         <div className="flex items-center justify-center gap-2 mb-1">
           <span className="text-xl">🦊</span>
           <span className="text-xs font-black text-amber-900">ITEN Mascot</span>

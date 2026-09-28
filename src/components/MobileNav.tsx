@@ -51,9 +51,9 @@ export const MobileNav: React.FC<MobileNavProps> = ({ activeTab, onTabChange }) 
     <nav
       id="mobile-bottom-nav"
       aria-label="Điều hướng chính di động"
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t-2 border-[#BAE6FD] shadow-[0_-4px_16px_rgba(14,165,233,0.1)] pb-[calc(env(safe-area-inset-bottom,0px)+0.35rem)] pt-1.5 px-1"
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-50 overflow-x-auto bg-white/95 backdrop-blur-xl border-t border-slate-200 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] pb-[calc(env(safe-area-inset-bottom,0px)+0.4rem)] pt-1.5 px-2"
     >
-      <div className="grid grid-cols-7 w-full max-w-2xl mx-auto items-center">
+      <div className="flex min-w-max sm:min-w-0 sm:grid sm:grid-cols-7 w-full max-w-2xl mx-auto items-center gap-1">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -67,24 +67,25 @@ export const MobileNav: React.FC<MobileNavProps> = ({ activeTab, onTabChange }) 
                 soundFx.playClick();
                 onTabChange(tab.id);
               }}
-              className={`flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all cursor-pointer select-none min-w-0 ${
+              className={`relative flex min-w-[4.75rem] sm:min-w-0 flex-col items-center justify-center py-1.5 px-2 rounded-xl transition-all duration-200 cursor-pointer select-none active:scale-95 ${
                 isActive
-                  ? 'text-[#EA580C] font-black'
+                  ? 'text-blue-700 font-black bg-blue-50'
                   : 'text-slate-500 hover:text-slate-800 font-bold'
               }`}
             >
               <div
                 className={`p-1 rounded-xl transition-transform ${
                   isActive
-                    ? 'bg-amber-100 text-[#EA580C] scale-110 shadow-xs'
+                    ? 'bg-blue-100 text-blue-700 scale-105'
                     : 'text-slate-400'
                 }`}
               >
                 <Icon className="w-5 h-5 shrink-0" />
               </div>
-              <span className="text-[10px] leading-tight tracking-tight mt-0.5 truncate w-full text-center">
+              <span className="text-[10px] leading-4 tracking-tight mt-0.5 whitespace-nowrap text-center">
                 {tab.label}
               </span>
+              {isActive && <span className="absolute -bottom-1 h-1 w-6 rounded-full bg-blue-600" />}
             </button>
           );
         })}

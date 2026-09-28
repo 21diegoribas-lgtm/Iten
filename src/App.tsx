@@ -609,7 +609,7 @@ if (authLoading) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50/50 via-sky-50/30 to-emerald-50/40 flex flex-col font-sans text-slate-900 selection:bg-amber-200">
+    <div className="min-h-screen bg-[#f6f8fc] flex flex-col font-sans text-slate-900 selection:bg-blue-200">
       {/* Top Header */}
       <Header
         currentUser={currentUser}
@@ -637,7 +637,7 @@ if (authLoading) {
         </div>
 
         {/* Main Content Area */}
-        <main className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-5 lg:p-8 pb-24 lg:pb-8">
+        <main className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-5 lg:p-7 xl:p-8 pb-24 lg:pb-8">
           <div className="w-full max-w-7xl mx-auto min-w-0">
             {activeTab === 'dashboard' && (
 

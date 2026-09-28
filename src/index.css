@@ -2,6 +2,19 @@
 @import "tailwindcss";
 
 @layer base {
+  :root {
+    --iten-primary: #2563eb;
+    --iten-primary-dark: #1d4ed8;
+    --iten-accent: #f59e0b;
+    --iten-surface: #ffffff;
+    --iten-surface-soft: #f8fafc;
+    --iten-border: #e2e8f0;
+    --iten-text: #0f172a;
+    --iten-muted: #64748b;
+    --iten-radius: 1rem;
+    --iten-shadow: 0 10px 30px rgba(15, 23, 42, 0.07);
+  }
+
   *, ::before, ::after {
     box-sizing: border-box;
   }
@@ -17,7 +30,8 @@
     font-family: 'Nunito', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: #F0F9FF;
+    color: var(--iten-text);
+    background: #f6f8fc;
   }
 
   img, svg, video, canvas {
@@ -28,10 +42,86 @@
   input, select, textarea, button {
     max-width: 100%;
   }
+
+  button, a, input, select, textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.22);
+    outline-offset: 2px;
+  }
   
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Nunito', sans-serif;
     letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  main :where(input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea) {
+    border-color: var(--iten-border);
+    background-color: #fff;
+    color: var(--iten-text);
+    transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+  }
+
+  main :where(input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea):focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+    outline: none;
+  }
+
+  main :where(input, select, textarea):disabled {
+    cursor: not-allowed;
+    background-color: #f1f5f9;
+    color: #94a3b8;
+  }
+
+  main label {
+    line-height: 1.45;
+  }
+
+  main table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  main table thead {
+    background: #f1f5f9;
+    color: #334155;
+  }
+
+  main table th {
+    font-weight: 800;
+    letter-spacing: 0.015em;
+  }
+
+  main table th,
+  main table td {
+    padding-block: 0.75rem;
+    border-bottom-color: #e2e8f0;
+    line-height: 1.4;
+  }
+
+  main table tbody tr {
+    transition: background-color 140ms ease;
+  }
+
+  main table tbody tr:hover {
+    background-color: rgba(239, 246, 255, 0.72);
+  }
+
+  .fixed.inset-0 {
+    backdrop-filter: blur(5px);
+  }
+
+  .fixed.inset-0 > div {
+    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.22);
   }
 }
 
@@ -42,18 +132,18 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(224, 242, 254, 0.6);
+  background: rgba(226, 232, 240, 0.7);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #38BDF8;
+  background: #94A3B8;
   border-radius: 9999px;
   border: 2px solid #FFFFFF;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #0284C7;
+  background: #64748B;
 }
 
 /* 3D Perspective Utility */
@@ -133,6 +223,7 @@
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     white-space: nowrap;
+    overscroll-behavior-inline: contain;
   }
 
   main table td,
@@ -157,6 +248,14 @@
     max-height: calc(100dvh - 1.5rem);
   }
 
+  #mobile-bottom-nav {
+    scrollbar-width: none;
+  }
+
+  #mobile-bottom-nav::-webkit-scrollbar {
+    display: none;
+  }
+
   .fixed.top-4.right-4 {
     left: 0.75rem;
     right: 0.75rem;
@@ -169,7 +268,7 @@
 
 @media (max-width: 374px) {
   #mobile-bottom-nav span {
-    font-size: 9px;
+    font-size: 10px;
   }
 
 }

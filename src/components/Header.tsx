@@ -36,7 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
     switch (currentUser.role) {
       case 'student':
         return (
-          <span className="inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-black bg-gradient-to-b from-[#E0F2FE] to-[#BAE6FD] text-[#0369A1] border border-white lg:border-2 shadow-[0_2px_0_#7DD3FC] lg:shadow-[0_3px_0_#7DD3FC] shrink-0">
+          <span className="inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-black bg-blue-50 text-blue-700 border border-blue-200 shadow-sm shrink-0">
             <GraduationCap className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
             <span className="hidden md:inline">Học sinh {currentUser.position ? `(${currentUser.position})` : ''}</span>
             <span className="md:hidden truncate max-w-12">{currentUser.className || 'HS'}</span>
@@ -44,7 +44,7 @@ export const Header: React.FC<HeaderProps> = ({
         );
       case 'teacher':
         return (
-          <span className="inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-black bg-gradient-to-b from-[#D1FAE5] to-[#A7F3D0] text-[#065F46] border border-white lg:border-2 shadow-[0_2px_0_#6EE7B7] lg:shadow-[0_3px_0_#6EE7B7] shrink-0">
+          <span className="inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm shrink-0">
             <UserCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
             <span className="hidden md:inline">Giáo viên ({currentUser.subject || 'Chủ nhiệm'})</span>
             <span className="md:hidden">GV</span>
@@ -52,7 +52,7 @@ export const Header: React.FC<HeaderProps> = ({
         );
       case 'admin':
         return (
-          <span className="inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-black bg-gradient-to-b from-[#FEF3C7] to-[#FDE68A] text-[#92400E] border border-white lg:border-2 shadow-[0_2px_0_#FCD34D] lg:shadow-[0_3px_0_#FCD34D] shrink-0">
+          <span className="inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-black bg-amber-50 text-amber-700 border border-amber-200 shadow-sm shrink-0">
             <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
             <span className="hidden md:inline">Quản trị viên</span>
             <span className="md:hidden">AD</span>
@@ -62,16 +62,16 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="h-14 sm:h-16 lg:h-20 bg-gradient-to-r from-white/95 via-[#F0F9FF]/95 to-white/95 backdrop-blur-md border-b-2 lg:border-b-4 border-[#BAE6FD] px-2.5 sm:px-4 lg:px-6 flex items-center justify-between sticky top-0 z-40 shadow-[0_4px_16px_rgba(14,165,233,0.08)] select-none min-w-0">
+    <header className="h-14 sm:h-16 lg:h-[4.5rem] bg-white/95 backdrop-blur-xl border-b border-slate-200 px-2.5 sm:px-4 lg:px-6 flex items-center justify-between sticky top-0 z-40 shadow-[0_4px_20px_rgba(15,23,42,0.045)] select-none min-w-0">
       <div className="flex items-center gap-1.5 sm:gap-2.5 lg:gap-3.5 min-w-0 shrink">
-        <div className="w-8 h-8 sm:w-9 sm:h-9 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl bg-gradient-to-br from-[#38BDF8] via-[#0284C7] to-[#0369A1] border lg:border-2 border-[#BAE6FD] flex items-center justify-center text-white shadow-[0_2px_0_#075985] lg:shadow-[0_4px_0_#075985] text-base sm:text-xl lg:text-2xl font-black transform hover:rotate-6 hover:scale-105 transition-all shrink-0">
+        <div className="w-8 h-8 sm:w-9 sm:h-9 lg:w-11 lg:h-11 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 border border-blue-300 flex items-center justify-center text-white shadow-sm text-base sm:text-xl lg:text-2xl font-black hover:scale-[1.03] transition-transform shrink-0">
           🏫
         </div>
         <div className="min-w-0">
-          <h1 className="text-sm sm:text-base lg:text-xl font-black text-[#0284C7] drop-shadow-[0_1px_0_#FFFFFF] tracking-tight flex items-center gap-1 sm:gap-1.5 flex-nowrap min-w-0">
+          <h1 className="text-sm sm:text-base lg:text-xl font-black text-blue-700 tracking-tight flex items-center gap-1 sm:gap-1.5 flex-nowrap min-w-0 leading-tight">
             <span className="text-base sm:text-lg lg:text-2xl shrink-0">ITEN</span>
             <span className="hidden md:inline text-slate-400 font-bold">-</span>
-            <span className="hidden md:inline text-[#EA580C] truncate">A friendly home for teachers and students</span>
+            <span className="hidden md:inline text-slate-600 truncate">A friendly home for teachers and students</span>
             <span className="text-[10px] sm:text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-black border border-amber-300 shrink-0">
               v2.5
             </span>
@@ -89,9 +89,9 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Circular Sound Toggle */}
         <button
           onClick={toggleSound}
-          className={`w-7 h-7 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-full flex items-center justify-center border lg:border-2 transition-all cursor-pointer shadow-[0_2px_0_rgba(0,0,0,0.15)] lg:shadow-[0_3px_0_rgba(0,0,0,0.15)] active:translate-y-0.5 shrink-0 ${
+          className={`w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center border transition-all cursor-pointer shadow-sm active:scale-95 shrink-0 ${
             soundOn
-              ? 'bg-gradient-to-b from-[#38BDF8] to-[#0284C7] text-white border-white'
+              ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
               : 'bg-slate-100 text-slate-400 border-slate-300'
           }`}
           title={soundOn ? 'Tắt âm thanh hiệu ứng' : 'Bật âm thanh hiệu ứng'}
@@ -107,7 +107,7 @@ export const Header: React.FC<HeaderProps> = ({
               setShowNotifications(!showNotifications);
               setShowUserMenu(false);
             }}
-            className="w-7 h-7 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-full bg-gradient-to-b from-[#FDE047] to-[#F59E0B] text-[#78350F] border lg:border-2 border-white shadow-[0_2px_0_#B45309] lg:shadow-[0_3px_0_#B45309] flex items-center justify-center cursor-pointer hover:brightness-105 active:translate-y-0.5 relative shrink-0"
+            className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 shadow-sm flex items-center justify-center cursor-pointer hover:bg-amber-100 active:scale-95 transition relative shrink-0"
             title="Thông báo"
           >
             <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
@@ -120,8 +120,8 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Notifications Dropdown */}
           {showNotifications && (
-            <div className="absolute left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0 top-full mt-2 sm:mt-3 w-[calc(100vw-24px)] max-w-96 sm:w-96 bg-white rounded-3xl shadow-2xl border-4 border-[#BAE6FD] overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="bg-gradient-to-r from-[#0284C7] to-[#0369A1] p-3 sm:p-4 text-white flex items-center justify-between gap-2 border-b-2 border-[#7DD3FC]">
+            <div className="absolute left-1/2 -translate-x-1/2 sm:left-auto sm:right-0 sm:translate-x-0 top-full mt-2 sm:mt-3 w-[calc(100vw-24px)] max-w-96 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="bg-slate-900 p-3 sm:p-4 text-white flex items-center justify-between gap-2 border-b border-slate-700">
                 <h3 className="font-black flex items-center gap-2 text-xs sm:text-sm min-w-0 flex-1">
                   <span className="shrink-0">🔔</span>
                   <span className="truncate">Thông báo hệ thống ({notifications.length})</span>
@@ -223,7 +223,7 @@ export const Header: React.FC<HeaderProps> = ({
               soundFx.playClick();
               onLogout();
             }}
-            className="hidden lg:flex w-10 h-10 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 border-2 border-rose-200 shadow-[0_2px_0_#FECDD3] items-center justify-center transition-all cursor-pointer ml-1 active:translate-y-0.5 shrink-0"
+            className="hidden lg:flex w-10 h-10 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 shadow-sm items-center justify-center transition-all cursor-pointer ml-1 active:scale-95 shrink-0"
             title="Đăng xuất / Đổi tài khoản"
           >
             <LogOut className="w-4 h-4" />
@@ -231,7 +231,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Mobile & Profile Popover Menu (Houses Logout on mobile) */}
           {showUserMenu && (
-            <div className="absolute right-0 top-full mt-2 w-[calc(100vw-1.5rem)] max-w-64 bg-white rounded-3xl shadow-2xl border-4 border-[#BAE6FD] overflow-hidden z-50 p-3 animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute right-0 top-full mt-2 w-[calc(100vw-1.5rem)] max-w-64 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50 p-3 animate-in fade-in zoom-in-95 duration-150">
               <div className="flex items-center gap-2.5 pb-2.5 border-b border-sky-100">
                 <img
                   src={getAvatarUrl(currentUser)}
