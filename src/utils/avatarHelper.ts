@@ -1,4 +1,4 @@
-// Chibi Educational Game Avatar System for ITEN (50 Unique Avatars avatar-01 to avatar-50)
+// Meme avatar system for ITEN (70 presets; avatar-01 to avatar-70)
 import { User } from '../types';
 
 export interface AvatarPreset {
@@ -784,6 +784,10 @@ const MEME_NAMES = [
   'Làm Được Mà', 'Wow Luôn', 'Quá Tuyệt Vời', 'Chờ Một Chút', 'Nay Tôi Ổn',
   'Học Là Chính', 'Vui Là Mười', 'Tự Tin Lên', 'Sắp Xong Rồi', 'Đỉnh Của Chóp',
   'Không Hề Giả Trân', 'Hơi Bị Hay', 'Cười Nhẹ', 'Nghiêm Túc Nè', 'Golden Meme',
+  'Lại Đây Xin Miếng', 'Tôi Đang Nghe', 'Phát Quà Nè', 'Suy Nghĩ Xa Xăm', 'Bảo Vệ Giấc Ngủ',
+  'Họp Khẩn Cấp', 'Núp Sau Cánh Cửa', 'Cười Sang', 'Thầy Yoda', 'Ai Cũng Giống Ai',
+  'Nói Nhỏ Nè', 'Vận May Tới', 'Nghi Ngờ Nhẹ', 'Bấm Nút Thôi', 'Thật Không Đó',
+  'Lần Đầu Lên Mạng', 'Nói Câu Quen Thuộc', 'Làm Gì Đi Chứ', 'Đội Trưởng Đây', 'Sơ Đồ Tư Duy',
 ] as const;
 
 // Popular meme templates served by Imgflip's public image CDN.
@@ -805,6 +809,13 @@ const MEME_IMAGE_URLS = [
   'https://i.imgflip.com/58eyvu.png', 'https://i.imgflip.com/gk5el.jpg', 'https://i.imgflip.com/2reqtg.png',
   'https://i.imgflip.com/27qxmb.jpg', 'https://i.imgflip.com/1w7ygt.jpg', 'https://i.imgflip.com/33e92f.jpg',
   'https://i.imgflip.com/3qqcim.png', 'https://i.imgflip.com/2kbn1e.jpg',
+  'https://i.imgflip.com/3oevdk.jpg', 'https://i.imgflip.com/21uy0f.jpg', 'https://i.imgflip.com/gtj5t.jpg',
+  'https://i.imgflip.com/1tl71a.jpg', 'https://i.imgflip.com/2tzo2k.jpg', 'https://i.imgflip.com/m78d.jpg',
+  'https://i.imgflip.com/3po4m7.jpg', 'https://i.imgflip.com/4acd7j.png', 'https://i.imgflip.com/8k0sa.jpg',
+  'https://i.imgflip.com/1tkjq9.jpg', 'https://i.imgflip.com/1op9wy.jpg', 'https://i.imgflip.com/1bip.jpg',
+  'https://i.imgflip.com/1bgw.jpg', 'https://i.imgflip.com/1yxkcp.jpg', 'https://i.imgflip.com/265k.jpg',
+  'https://i.imgflip.com/1bhw.jpg', 'https://i.imgflip.com/176h0h.jpg', 'https://i.imgflip.com/bwu6w.jpg',
+  'https://i.imgflip.com/hlmst.jpg', 'https://i.imgflip.com/1itoun.jpg',
 ] as const;
 
 function generateMemeSvg(idNum: number, label: string): string {
@@ -844,8 +855,16 @@ function generateMemeSvg(idNum: number, label: string): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-// Preserve avatar IDs and categories so existing users keep their selection.
-export const AVATAR_PRESETS_50: AvatarPreset[] = CHIBI_AVATAR_PRESETS_50.map((avatar, index) => ({
+const AVATAR_BASES_70: AvatarPreset[] = [
+  ...CHIBI_AVATAR_PRESETS_50,
+  ...CHIBI_AVATAR_PRESETS_50.slice(0, 20).map((avatar, index) => ({
+    ...avatar,
+    id: `avatar-${String(index + 51).padStart(2, '0')}`,
+  })),
+];
+
+// Preserve the first 50 avatar IDs so existing users keep their selection.
+export const AVATAR_PRESETS_50: AvatarPreset[] = AVATAR_BASES_70.map((avatar, index) => ({
   ...avatar,
   name: MEME_NAMES[index],
   description: `Meme reaction học đường: ${MEME_NAMES[index]}.`,

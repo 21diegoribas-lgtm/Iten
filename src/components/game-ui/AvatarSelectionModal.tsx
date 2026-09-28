@@ -8,6 +8,7 @@ interface AvatarSelectionModalProps {
   onConfirm: (selectedAvatarId: string) => void | Promise<void>;
   onClose?: () => void;
   isInitialSetup?: boolean; // If true, force selecting avatar before starting
+  unavailableAvatarIds?: string[];
 }
 
 export const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
@@ -15,7 +16,8 @@ export const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
   currentAvatarId,
   onConfirm,
   onClose,
-  isInitialSetup = false
+  isInitialSetup = false,
+  unavailableAvatarIds = []
 }) => {
   const [selectedId, setSelectedId] = useState<string>(currentAvatarId || 'avatar-01');
   const [activeTab, setActiveTab] = useState<string>('all');
@@ -34,7 +36,10 @@ export const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
   const selectedAvatar: AvatarPreset = getAvatarById(selectedId);
 
   // Filter avatars
-  const filteredAvatars = AVATAR_PRESETS_50.filter(avatar => {
+  const availableAvatars = AVATAR_PRESETS_50.filter(
+    avatar => !unavailableAvatarIds.includes(avatar.id) || avatar.id === currentAvatarId
+  );
+  const filteredAvatars = availableAvatars.filter(avatar => {
     const matchesTab =
       activeTab === 'all' ||
       (activeTab === 'male' && avatar.category === 'male') ||
@@ -86,7 +91,7 @@ export const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
                 {isInitialSetup ? 'CHỌN MEME ĐẠI DIỆN CỦA BẠN' : 'CHỌN MEME AVATAR'}
               </h2>
               <p className="text-xs text-amber-100 font-medium">
-                Chọn 1 trong 50 meme reaction học đường để sử dụng xuyên suốt ITEN!
+                Chọn một meme chưa có ai sử dụng để làm avatar xuyên suốt ITEN!
               </p>
             </div>
           </div>
@@ -173,7 +178,7 @@ export const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
               {/* Category Filter Tabs */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                 {[
-                  { id: 'all', label: 'Tất cả (50)' },
+                  { id: 'all', label: `Còn ${availableAvatars.length}/70` },
                   { id: 'male', label: 'Phản ứng vui' },
                   { id: 'female', label: 'Dễ thương' },
                   { id: 'personality', label: 'Mood học đường' },
@@ -207,7 +212,7 @@ export const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
               </div>
             </div>
 
-            {/* 50 AVATARS RESPONSIVE GRID (5 desktop / 4 tablet / 3 mobile) */}
+            {/* 70 AVATARS RESPONSIVE GRID (5 desktop / 4 tablet / 3 mobile) */}
             <div className="flex-1 overflow-y-auto pr-1">
               {filteredAvatars.length === 0 ? (
                 <div className="text-center py-12 text-slate-400 text-sm font-medium">

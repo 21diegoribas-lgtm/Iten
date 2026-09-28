@@ -10,7 +10,7 @@ import { getClassById, getClasses } from './services/classService';
 import { updateClass, setClass, deleteClass } from './services/classService';
 import { getNotificationsForUser, markNotificationRead, setNotification } from './services/notificationService';
 import React, { useEffect, useState } from 'react';
-import { getStudents, getStudentsByClass } from './services/studentService';
+import { getStudents, getStudentsByClass, updateStudent } from './services/studentService';
 import { User, MainTabType, NotificationItem, TimetableEntry, CleaningSchedule, DisciplineRecord, LearningRecord, Complaint, AccountRequest, AttendanceRecord, SpyGameMission, FlowerGameConfig, RacingGameConfig, KeyboardHeroTask, MemoryCardGameConfig, PersonalStorageItem, TeacherWorkSchedule, TeacherWeeklyTimetable, ClassFundItem, ClassFundExpense, ClassLogbookWeek, PointUsageTransaction, ActivityPointRecord, ClassItem } from './types';
 import { Sidebar } from './components/Sidebar';
 import { MobileNav } from './components/MobileNav';
@@ -1398,6 +1398,12 @@ onDeleteStorageItem={id => {
         <AvatarSelectionModal
           isOpen={showAvatarModal}
           currentAvatarId={currentUser.avatarId || 'avatar-01'}
+          unavailableAvatarIds={Array.from(new Set(
+            [...students, ...teachers]
+              .filter(user => user.id !== currentUser.id)
+              .map(user => user.avatarId)
+              .filter((avatarId): avatarId is string => Boolean(avatarId))
+          ))}
           isInitialSetup={currentUser.role === 'student' && !currentUser.avatarId}
           onConfirm={async (avatarId) => {
             const avatarObj = getAvatarById(avatarId);
@@ -1413,6 +1419,9 @@ onDeleteStorageItem={id => {
               avatarId,
               avatar: avatarObj.svgUrl,
             });
+            if (updatedUser.role === 'student') {
+              await updateStudent(updatedUser.id, { avatarId, avatar: avatarObj.svgUrl });
+            }
             setCurrentUser(updatedUser);
             setStudents(prev => prev.map(s => s.id === updatedUser.id ? { ...s, avatarId: avatarId, avatar: avatarObj.svgUrl } : s));
             setTeachers(prev => prev.map(t => t.id === updatedUser.id ? { ...t, avatarId: avatarId, avatar: avatarObj.svgUrl } : t));
