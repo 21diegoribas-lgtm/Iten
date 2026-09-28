@@ -4,7 +4,8 @@ import { db } from '../lib/firebase';
 export type AppCollectionName =
   | 'timetables' | 'teacherSchedules' | 'teacherWeeklyTimetables'
   | 'complaints' | 'accountRequests' | 'personalStorageItems'
-  | 'classFunds' | 'classExpenses' | 'classLogbooks' | 'pointUsageTransactions';
+  | 'classFunds' | 'classExpenses' | 'classLogbooks' | 'pointUsageTransactions'
+  | 'learningRecords' | 'disciplineRecords';
 
 export async function loadAppCollection<T>(name: AppCollectionName, field?: string, value?: string): Promise<T[]> {
   const ref = collection(db, name);

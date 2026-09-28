@@ -408,6 +408,44 @@ allow get, list: if isAuthenticated() && (
         allow delete: if isAdmin() || (isTeacher() && resource.data.classId == getUserClassId());
       }
 
+      // Point entries entered directly by teachers/admins. Activity-generated
+      // points remain in activityPoints and are merged by the client.
+      match /learningRecords/{recordId} {
+        allow read: if isAuthenticated() && (
+          isAdmin() ||
+          resource.data.studentId == request.auth.uid ||
+          (isTeacher() && resource.data.classId == getUserClassId())
+        );
+        allow create: if (isAdmin() || (isTeacher() && request.resource.data.classId == getUserClassId())) &&
+          request.resource.data.id == recordId && request.resource.data.studentId is string &&
+          request.resource.data.classId is string && request.resource.data.points is number;
+        allow update: if isAdmin() || (
+          isTeacher() && resource.data.classId == getUserClassId() &&
+          request.resource.data.id == resource.data.id &&
+          request.resource.data.studentId == resource.data.studentId &&
+          request.resource.data.classId == resource.data.classId
+        );
+        allow delete: if isAdmin() || (isTeacher() && resource.data.classId == getUserClassId());
+      }
+
+      match /disciplineRecords/{recordId} {
+        allow read: if isAuthenticated() && (
+          isAdmin() ||
+          resource.data.studentId == request.auth.uid ||
+          (isTeacher() && resource.data.classId == getUserClassId())
+        );
+        allow create: if (isAdmin() || (isTeacher() && request.resource.data.classId == getUserClassId())) &&
+          request.resource.data.id == recordId && request.resource.data.studentId is string &&
+          request.resource.data.classId is string && request.resource.data.points is number;
+        allow update: if isAdmin() || (
+          isTeacher() && resource.data.classId == getUserClassId() &&
+          request.resource.data.id == resource.data.id &&
+          request.resource.data.studentId == resource.data.studentId &&
+          request.resource.data.classId == resource.data.classId
+        );
+        allow delete: if isAdmin() || (isTeacher() && resource.data.classId == getUserClassId());
+      }
+
       match /cleaningSchedules/{classId} {
         allow get: if isAuthenticated() && (isAdmin() || classId == getUserClassId() || teacherManagesClass(classId));
         allow list: if isAdmin();

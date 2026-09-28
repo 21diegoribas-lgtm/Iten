@@ -237,18 +237,29 @@ useEffect(() => {
     let cancelled = false;
     setLearningRecords([]);
     setDisciplineRecords([]);
-    const request = currentUser.role === 'student'
+    const activityRequest = currentUser.role === 'student'
       ? loadActivityPointsForUser(currentUser.id)
       : loadActivityPointsForClass(currentUser.classId || '');
-    request
-      .then(points => {
+    const loadManual = <T,>(collectionName: 'learningRecords' | 'disciplineRecords') => {
+      if (currentUser.role === 'admin') return loadAppCollection<T>(collectionName);
+      if (currentUser.role === 'student') return loadAppCollection<T>(collectionName, 'studentId', currentUser.id);
+      return currentUser.classId
+        ? loadAppCollection<T>(collectionName, 'classId', currentUser.classId)
+        : Promise.resolve([]);
+    };
+    Promise.all([
+      activityRequest,
+      loadManual<LearningRecord>('learningRecords'),
+      loadManual<DisciplineRecord>('disciplineRecords'),
+    ])
+      .then(([points, manualLearning, manualTraining]) => {
         if (cancelled) return;
         const academic = points.filter(point => point.pointType === 'academic_activity').map(activityPointToLearningRecord);
         const training = points.filter(point => point.pointType === 'training_activity').map(activityPointToDisciplineRecord);
-        setLearningRecords(academic);
-        setDisciplineRecords(training);
+        setLearningRecords([...academic, ...manualLearning.filter(item => !academic.some(saved => saved.id === item.id))]);
+        setDisciplineRecords([...training, ...manualTraining.filter(item => !training.some(saved => saved.id === item.id))]);
       })
-      .catch(error => console.error('[Load Activity Points Error]', error));
+      .catch(error => console.error('[Load Point Records Error]', error));
     return () => { cancelled = true; };
   }, [currentUser?.id, currentUser?.role, currentUser?.classId]);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
@@ -1086,15 +1097,17 @@ onAddTeachersBulk={newTeachers => {
                 pointUsageTransactions={pointUsageTransactions}
                 onAddPointUsageTransaction={handleAddPointUsageTransaction}
                 onCancelPointUsageTransaction={handleCancelPointUsageTransaction}
-   		onAddDisciplineRecord={rec => {
+		onAddDisciplineRecord={rec => {
   if (!canManageClass(rec.classId)) return;
 
+  void saveAppDocument('disciplineRecords', rec).catch(error => console.error('[Save Discipline Record Error]', error));
   setDisciplineRecords(prev => [rec, ...prev]);
 }}
 
 onUpdateDisciplineRecord={rec => {
   if (!canManageClass(rec.classId)) return;
 
+  void saveAppDocument('disciplineRecords', rec).catch(error => console.error('[Update Discipline Record Error]', error));
   setDisciplineRecords(prev =>
     prev.map(r => r.id === rec.id ? rec : r)
   );
@@ -1108,6 +1121,7 @@ onDeleteDisciplineRecord={id => {
 
   if (!canManageClass(target.classId)) return;
 
+  void deleteAppDocument('disciplineRecords', id).catch(error => console.error('[Delete Discipline Record Error]', error));
   setDisciplineRecords(prev =>
     prev.filter(r => r.id !== id)
   );
@@ -1158,6 +1172,7 @@ onResolveComplaint={(id, response) => {
   if (!canManageClass(rec.classId)) return;
   const allowedRecord = learningRecordForCurrentTeacher(rec);
   if (!allowedRecord) return;
+  void saveAppDocument('learningRecords', allowedRecord).catch(error => console.error('[Save Learning Record Error]', error));
   setLearningRecords(prev => [allowedRecord, ...prev]);
 }}
 
@@ -1167,6 +1182,7 @@ onUpdateLearningRecord={rec => {
   if (currentUser.role === 'teacher' && existing?.subjectName?.trim().toLocaleLowerCase('vi') !== currentUser.subject?.trim().toLocaleLowerCase('vi')) return;
   const allowedRecord = learningRecordForCurrentTeacher(rec);
   if (!allowedRecord) return;
+  void saveAppDocument('learningRecords', allowedRecord).catch(error => console.error('[Update Learning Record Error]', error));
   setLearningRecords(prev => prev.map(r => r.id === rec.id ? allowedRecord : r));
 }}
 
@@ -1178,6 +1194,7 @@ onDeleteLearningRecord={id => {
 
   if (!canManageClass(target.classId)) return;
 
+  void deleteAppDocument('learningRecords', id).catch(error => console.error('[Delete Learning Record Error]', error));
   setLearningRecords(prev =>
     prev.filter(r => r.id !== id)
   );
@@ -1286,11 +1303,13 @@ onDeleteLearningRecord={id => {
                   if (!canManage || !canManageClass(rec.classId)) return;
                   const allowedRecord = learningRecordForCurrentTeacher(rec);
                   if (!allowedRecord) return;
+                  void saveAppDocument('learningRecords', allowedRecord).catch(error => console.error('[Save Learning Record Error]', error));
                   setLearningRecords(prev => [allowedRecord, ...prev]);
                 }}
                 onAddDisciplineRecord={rec => {
   if (!canManageClass(rec.classId)) return;
 
+  void saveAppDocument('disciplineRecords', rec).catch(error => console.error('[Save Discipline Record Error]', error));
   setDisciplineRecords(prev => [rec, ...prev]);
 }}
                 onActivityPointSaved={mergeActivityPoint}
@@ -1352,7 +1371,10 @@ onDeleteStorageItem={id => {
     recordedBy: currentUser.fullName || 'Giáo viên'
   };
 
-  setLearningRecords(prev => [newRec, ...prev]);
+  const allowedRecord = learningRecordForCurrentTeacher(newRec);
+  if (!allowedRecord) return;
+  void saveAppDocument('learningRecords', allowedRecord).catch(error => console.error('[Save Learning Record Error]', error));
+  setLearningRecords(prev => [allowedRecord, ...prev]);
 }}
               />
             )}
