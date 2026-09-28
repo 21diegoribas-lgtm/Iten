@@ -786,6 +786,27 @@ const MEME_NAMES = [
   'Không Hề Giả Trân', 'Hơi Bị Hay', 'Cười Nhẹ', 'Nghiêm Túc Nè', 'Golden Meme',
 ] as const;
 
+// Popular meme templates served by Imgflip's public image CDN.
+const MEME_IMAGE_URLS = [
+  'https://i.imgflip.com/30b1gx.jpg', 'https://i.imgflip.com/1g8my4.jpg', 'https://i.imgflip.com/1ur9b0.jpg',
+  'https://i.imgflip.com/3lmzyx.jpg', 'https://i.imgflip.com/22bdq6.jpg', 'https://i.imgflip.com/46e43q.png',
+  'https://i.imgflip.com/5c7lwq.png', 'https://i.imgflip.com/28j0te.jpg', 'https://i.imgflip.com/26jxvz.jpg',
+  'https://i.imgflip.com/261o3j.jpg', 'https://i.imgflip.com/2fm6x.jpg', 'https://i.imgflip.com/23ls.jpg',
+  'https://i.imgflip.com/1c1uej.jpg', 'https://i.imgflip.com/24y43o.jpg', 'https://i.imgflip.com/54hjww.jpg',
+  'https://i.imgflip.com/1ihzfe.jpg', 'https://i.imgflip.com/345v97.jpg', 'https://i.imgflip.com/2odckz.jpg',
+  'https://i.imgflip.com/26am.jpg', 'https://i.imgflip.com/1otk96.jpg', 'https://i.imgflip.com/1b42wl.jpg',
+  'https://i.imgflip.com/1bij.jpg', 'https://i.imgflip.com/2za3u1.jpg', 'https://i.imgflip.com/1o00in.jpg',
+  'https://i.imgflip.com/2xscjb.png', 'https://i.imgflip.com/8d317n.png', 'https://i.imgflip.com/43a45p.png',
+  'https://i.imgflip.com/145qvv.jpg', 'https://i.imgflip.com/1jwhww.jpg', 'https://i.imgflip.com/1wz1x.jpg',
+  'https://i.imgflip.com/2ybua0.png', 'https://i.imgflip.com/64sz4u.png', 'https://i.imgflip.com/19vcz0.jpg',
+  'https://i.imgflip.com/wxica.jpg', 'https://i.imgflip.com/8tw3vb.png', 'https://i.imgflip.com/4pn1an.png',
+  'https://i.imgflip.com/2gnnjh.jpg', 'https://i.imgflip.com/5v6gwj.jpg', 'https://i.imgflip.com/38el31.jpg',
+  'https://i.imgflip.com/1h7in3.jpg', 'https://i.imgflip.com/3i7p.jpg', 'https://i.imgflip.com/3eqjd8.jpg',
+  'https://i.imgflip.com/58eyvu.png', 'https://i.imgflip.com/gk5el.jpg', 'https://i.imgflip.com/2reqtg.png',
+  'https://i.imgflip.com/27qxmb.jpg', 'https://i.imgflip.com/1w7ygt.jpg', 'https://i.imgflip.com/33e92f.jpg',
+  'https://i.imgflip.com/3qqcim.png', 'https://i.imgflip.com/2kbn1e.jpg',
+] as const;
+
 function generateMemeSvg(idNum: number, label: string): string {
   const palettes = [
     ['#FEF3C7', '#F59E0B', '#78350F'], ['#DBEAFE', '#38BDF8', '#0C4A6E'],
@@ -828,7 +849,7 @@ export const AVATAR_PRESETS_50: AvatarPreset[] = CHIBI_AVATAR_PRESETS_50.map((av
   ...avatar,
   name: MEME_NAMES[index],
   description: `Meme reaction học đường: ${MEME_NAMES[index]}.`,
-  svgUrl: generateMemeSvg(index + 1, MEME_NAMES[index]),
+  svgUrl: MEME_IMAGE_URLS[index],
 }));
 
 // Helper to resolve an avatar object or SVG string from a user object
