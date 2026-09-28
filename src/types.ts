@@ -6,6 +6,7 @@ export type MainTabType =
   | 'learning_competition'
   | 'activities'
   | 'online_tests'
+  | 'requests'
   | 'utilities';
 
 export type StudentPosition = 
@@ -296,8 +297,12 @@ export interface AccountRequest {
   role: UserRole;
   type: 'reset_password' | 'update_profile';
   details: string;
-  status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối';
+  status: 'Chưa xử lý' | 'Đã xử lý' | 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối';
   createdAt: string;
+  classId?: string;
+  className?: string;
+  handledBy?: string;
+  handledAt?: string;
 }
 
 export interface AttendanceRecord {

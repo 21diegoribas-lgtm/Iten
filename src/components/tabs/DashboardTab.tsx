@@ -5,7 +5,6 @@ import {
   NotificationItem,
   TimetableEntry,
   CleaningSchedule,
-  AccountRequest,
   Complaint,
   TeacherWorkSchedule,
   TeacherWeeklyTimetable,
@@ -94,9 +93,6 @@ interface DashboardTabProps {
   onUpdateTeacherSchedule?: (s: TeacherWorkSchedule) => void;
   onDeleteTeacherSchedule?: (id: string) => void;
   onUpdateCleaning: (cl: CleaningSchedule) => Promise<void>;
-  onAddAccountRequest: (req: AccountRequest) => void;
-  accountRequests: AccountRequest[];
-  onResolveRequest: (id: string, status: 'Đã duyệt' | 'Từ chối') => void;
   onAddStudent: (st: User) => Promise<void>;
   onUpdateStudent?: (st: User) => void;
   onDeleteStudent?: (id: string) => Promise<void>;
@@ -143,9 +139,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   onUpdateTeacherSchedule,
   onDeleteTeacherSchedule,
   onUpdateCleaning,
-  onAddAccountRequest,
-  accountRequests,
-  onResolveRequest,
   onAddStudent,
   onUpdateStudent,
   onDeleteStudent,
@@ -435,9 +428,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     }))
   };
 
-  // Password / Profile requests form
-  const [reqDetails, setReqDetails] = useState('');
-  const [reqType, setReqType] = useState<'reset_password' | 'update_profile'>('reset_password');
 
   // New class form
   const [newClassName, setNewClassName] = useState('');
@@ -539,24 +529,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     );
   }
 };
-  const handleSendRequest = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!reqDetails) return;
-    soundFx.playSuccess();
-    onAddAccountRequest({
-      id: 'ar_' + Date.now(),
-      userId: currentUser.id,
-      userName: currentUser.fullName,
-      role: currentUser.role,
-      type: reqType,
-      details: reqDetails,
-      status: 'Chờ duyệt',
-      createdAt: new Date().toISOString().replace('T', ' ').substring(0, 16)
-    });
-    setReqDetails('');
-    alert('Đã gửi yêu cầu đến giáo viên/quản trị viên thành công!');
-  };
-
   return (
     <div className="space-y-4 sm:space-y-5 lg:space-y-6 w-full min-w-0 max-w-full">
       {/* Welcome Banner */}
@@ -744,57 +716,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               </div>
             </div>
 
-            {/* Student & Class Officer Request Section */}
-            {currentUser.role === 'student' && (
-              <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 lg:p-6 border border-amber-100 shadow-sm w-full min-w-0">
-                <h3 className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
-                  <span>✉️</span> Yêu cầu cá nhân & Hỗ trợ tài khoản
-                </h3>
-                <form onSubmit={handleSendRequest} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Loại yêu cầu</label>
-                      <select
-                        value={reqType}
-                        onChange={e => setReqType(e.target.value as any)}
-                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-amber-400"
-                      >
-                        <option value="reset_password">Yêu cầu cấp lại mật khẩu</option>
-                        <option value="update_profile">Yêu cầu thay đổi hồ sơ cá nhân</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Người nhận</label>
-                      <input
-                        type="text"
-                        disabled
-                        value={classesList.find(c => c.id === currentUser.classId)?.homeroomTeacher
-                          ? `Giáo viên chủ nhiệm (${classesList.find(c => c.id === currentUser.classId)?.homeroomTeacher})`
-                          : 'Quản trị viên'}
-                        className="w-full p-3 bg-slate-100 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-500 cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Nội dung chi tiết</label>
-                    <textarea
-                      rows={3}
-                      value={reqDetails}
-                      onChange={e => setReqDetails(e.target.value)}
-                      placeholder="Nhập nội dung yêu cầu gửi đến giáo viên..."
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-amber-400"
-                      required
-                    ></textarea>
-                  </div>
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl text-xs shadow-md shadow-orange-500/20 hover:from-amber-600 hover:to-orange-600 transition-all cursor-pointer"
-                  >
-                    Gửi yêu cầu
-                  </button>
-                </form>
-              </div>
-            )}
 
             {/* Teacher & Admin Class & Student Management Quick Card */}
             {(currentUser.role === 'teacher' || currentUser.role === 'admin') && (
@@ -886,49 +807,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                   >
                     <Briefcase className="w-4 h-4 shrink-0" /> Quản lý lịch làm việc ({teacherSchedules?.filter(s => s.teacherId === currentUser.id || currentUser.role === 'admin').length || 0})
                   </button>
-                </div>
-              </div>
-            )}
-
-            {/* Admin / Teacher Request Management */}
-            {(currentUser.role === 'teacher' || currentUser.role === 'admin') && (
-              <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 lg:p-6 border border-amber-100 shadow-sm w-full min-w-0">
-                <h3 className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
-                <span>📥</span> Yêu cầu cấp lại mật khẩu & Hồ sơ ({(accountRequests ?? []).length})
-                </h3>
-                <div className="space-y-3">
-                  {(accountRequests ?? []).length === 0 ?  (
-                    <p className="text-xs text-slate-400 text-center py-4">Không có yêu cầu nào đang chờ xử lý.</p>
-                  ) : (
-                    accountRequests.map(req => (
-                      <div key={req.id} className="p-3.5 sm:p-4 rounded-2xl bg-amber-50/40 border border-amber-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <span className="font-bold text-slate-800 text-xs sm:text-sm">{req.userName}</span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 shrink-0">
-                              {req.type === 'reset_password' ? 'Cấp lại mật khẩu' : 'Sửa hồ sơ'}
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-600 mb-1">{req.details}</p>
-                          <span className="text-[11px] text-slate-400">{req.createdAt}</span>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            onClick={() => { soundFx.playSuccess(); onResolveRequest(req.id, 'Đã duyệt'); }}
-                            className="flex-1 sm:flex-none px-3 py-1.5 bg-emerald-500 text-white font-bold rounded-xl text-xs hover:bg-emerald-600 cursor-pointer text-center"
-                          >
-                            Duyệt
-                          </button>
-                          <button
-                            onClick={() => { soundFx.playError(); onResolveRequest(req.id, 'Từ chối'); }}
-                            className="flex-1 sm:flex-none px-3 py-1.5 bg-rose-500 text-white font-bold rounded-xl text-xs hover:bg-rose-600 cursor-pointer text-center"
-                          >
-                            Từ chối
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
                 </div>
               </div>
             )}

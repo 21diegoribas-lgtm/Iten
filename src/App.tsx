@@ -23,6 +23,7 @@ import { LearningCompetitionTab } from './components/tabs/LearningCompetitionTab
 import { ActivitiesTab } from './components/tabs/ActivitiesTab';
 import { UtilitiesTab } from './components/tabs/UtilitiesTab';
 import { OnlineTestsTab } from './components/tabs/OnlineTestsTab';
+import { RequestsTab } from './components/tabs/RequestsTab';
 import { AvatarSelectionModal } from './components/game-ui/AvatarSelectionModal';
 import { getAvatarById } from './utils/avatarHelper';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -444,7 +445,9 @@ useEffect(() => {
       currentUser.role === 'student'
         ? loadAppCollection<Complaint>('complaints', 'studentId', currentUser.id)
         : scoped<Complaint>('complaints', 'className', className),
-      isCurrentAdmin ? loadAppCollection<AccountRequest>('accountRequests') : loadAppCollection<AccountRequest>('accountRequests', 'userId', currentUser.id),
+      currentUser.role === 'student'
+        ? loadAppCollection<AccountRequest>('accountRequests', 'userId', currentUser.id)
+        : loadAppCollection<AccountRequest>('accountRequests'),
       loadAppCollection<PersonalStorageItem>('personalStorageItems', 'userId', currentUser.id),
       scoped<ClassFundItem>('classFunds', 'classId', classId),
       scoped<ClassFundExpense>('classExpenses', 'classId', classId),
@@ -815,33 +818,6 @@ onDeleteTeacherSchedule={id => {
                   setCleaning(cl);
                   setCleaningLoadError('');
                 }}
-                onAddAccountRequest={req => {
-  void saveAppDocument('accountRequests', req).catch(console.error);
-  setAccountRequests(prev => [req, ...prev]);
-}}
-
-onResolveRequest={(id, status) => {
-  if (!canManage) return;
-
-  const target = accountRequests.find(r => r.id === id);
-  if (!target) return;
-
-  if (currentUser?.role === 'teacher') {
-    const targetUser = students.find(s => s.id === target.userId);
-
-    if (!targetUser || targetUser.classId !== currentUser.classId) {
-      return;
-    }
-  }
-
-  const updatedRequest = { ...target, status };
-  void saveAppDocument('accountRequests', updatedRequest).catch(console.error);
-  setAccountRequests(prev =>
-    prev.map(r =>
-      r.id === id ? { ...r, status } : r
-    )
-  );
-}}
                 onAddStudent={async st => {
   if (!canManageClass(st.classId)) {
     throw { code: 'permission-denied', message: 'Bạn không có quyền thêm học sinh vào lớp này.' };
@@ -1329,6 +1305,41 @@ onDeleteLearningRecord={id => {
                       ? canManageClass(classItem.id)
                       : classItem.id === currentUser.classId
                 )}
+              />
+            )}
+
+            {activeTab === 'requests' && (
+              <RequestsTab
+                currentUser={currentUser}
+                requests={accountRequests}
+                onAdd={async request => {
+                  if (request.userId !== currentUser.id || request.role !== currentUser.role) {
+                    throw new Error('Thông tin người gửi không hợp lệ.');
+                  }
+                  await saveAppDocument('accountRequests', request);
+                  setAccountRequests(previous => [request, ...previous.filter(item => item.id !== request.id)]);
+                }}
+                onSetHandled={async (id, handled) => {
+                  if (currentUser.role !== 'teacher' && currentUser.role !== 'admin') {
+                    throw new Error('Bạn không có quyền xử lý yêu cầu.');
+                  }
+                  const target = accountRequests.find(item => item.id === id);
+                  if (!target) throw new Error('Không tìm thấy yêu cầu.');
+                  const updated: AccountRequest = {
+                    ...target,
+                    status: handled ? 'Đã xử lý' : 'Chưa xử lý',
+                    ...(handled
+                      ? { handledBy: currentUser.fullName, handledAt: new Date().toISOString() }
+                      : { handledBy: '', handledAt: '' }),
+                  };
+                  await saveAppDocument('accountRequests', updated);
+                  setAccountRequests(previous => previous.map(item => item.id === id ? updated : item));
+                }}
+                onDelete={async id => {
+                  if (currentUser.role !== 'admin') throw new Error('Chỉ quản trị viên được xóa yêu cầu.');
+                  await deleteAppDocument('accountRequests', id);
+                  setAccountRequests(previous => previous.filter(item => item.id !== id));
+                }}
               />
             )}
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Award, BookOpen, Sparkles, Wrench, ClipboardCheck } from 'lucide-react';
+import { LayoutDashboard, Award, BookOpen, Sparkles, Wrench, ClipboardCheck, Inbox } from 'lucide-react';
 import { soundFx } from '../utils/sound';
 import { MainTabType, User } from '../types';
 import { getAvatarUrl } from '../utils/avatarHelper';
@@ -52,6 +52,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, curren
       icon: ClipboardCheck,
       activeBg: 'bg-gradient-to-b from-[#6366F1] to-[#4338CA] text-white border-2 border-[#C7D2FE] shadow-[0_5px_0_#312E81]',
       hoverBg: 'hover:bg-indigo-50 text-slate-700 bg-white/80 border border-indigo-100 shadow-[0_2px_0_#C7D2FE]'
+    },
+    {
+      id: 'requests' as MainTabType,
+      label: 'Yêu cầu',
+      emoji: '📨',
+      icon: Inbox,
+      activeBg: 'bg-gradient-to-b from-[#F472B6] to-[#DB2777] text-white border-2 border-[#FBCFE8] shadow-[0_5px_0_#9D174D]',
+      hoverBg: 'hover:bg-pink-50 text-slate-700 bg-white/80 border border-pink-100 shadow-[0_2px_0_#FBCFE8]'
     },
     {
       id: 'utilities' as MainTabType,

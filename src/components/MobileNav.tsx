@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Award, BookOpen, Sparkles, Wrench, ClipboardCheck } from 'lucide-react';
+import { LayoutDashboard, Award, BookOpen, Sparkles, Wrench, ClipboardCheck, Inbox } from 'lucide-react';
 import { MainTabType } from '../types';
 import { soundFx } from '../utils/sound';
 
@@ -36,6 +36,11 @@ export const MobileNav: React.FC<MobileNavProps> = ({ activeTab, onTabChange }) 
       icon: ClipboardCheck,
     },
     {
+      id: 'requests' as MainTabType,
+      label: 'Yêu cầu',
+      icon: Inbox,
+    },
+    {
       id: 'utilities' as MainTabType,
       label: 'Tiện ích',
       icon: Wrench,
@@ -48,7 +53,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({ activeTab, onTabChange }) 
       aria-label="Điều hướng chính di động"
       className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t-2 border-[#BAE6FD] shadow-[0_-4px_16px_rgba(14,165,233,0.1)] pb-[calc(env(safe-area-inset-bottom,0px)+0.35rem)] pt-1.5 px-1"
     >
-      <div className="grid grid-cols-6 w-full max-w-xl mx-auto items-center">
+      <div className="grid grid-cols-7 w-full max-w-2xl mx-auto items-center">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;

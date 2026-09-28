@@ -624,7 +624,7 @@ match /teacherWeeklyTimetables/{itemId} {
 
     match /accountRequests/{itemId} {
   allow read: if
-    isAdmin() ||
+    isStaff() ||
     (
       isAuthenticated() &&
       resource.data.userId == request.auth.uid
@@ -636,7 +636,7 @@ match /teacherWeeklyTimetables/{itemId} {
     request.resource.data.id == itemId &&
     request.resource.data.role == getUserRole() &&
     request.resource.data.type in ['reset_password', 'update_profile'] &&
-    request.resource.data.status == 'Chờ duyệt' &&
+    request.resource.data.status in ['Chưa xử lý', 'Chờ duyệt'] &&
     request.resource.data.userName is string &&
     request.resource.data.details is string &&
     request.resource.data.createdAt is string &&
@@ -648,17 +648,28 @@ match /teacherWeeklyTimetables/{itemId} {
       'type',
       'details',
       'status',
-      'createdAt'
+      'createdAt',
+      'classId',
+      'className',
+      'updatedAt'
     ]);
 
   allow update: if
-    isAdmin() &&
+    isStaff() &&
     request.resource.data.id == resource.data.id &&
     request.resource.data.userId == resource.data.userId &&
+    request.resource.data.userName == resource.data.userName &&
+    request.resource.data.role == resource.data.role &&
+    request.resource.data.type == resource.data.type &&
+    request.resource.data.details == resource.data.details &&
+    request.resource.data.createdAt == resource.data.createdAt &&
     request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-      'status'
+      'status',
+      'handledBy',
+      'handledAt',
+      'updatedAt'
     ]) &&
-    request.resource.data.status in ['Đã duyệt', 'Từ chối'];
+    request.resource.data.status in ['Chưa xử lý', 'Đã xử lý', 'Chờ duyệt', 'Đã duyệt', 'Từ chối'];
 
   allow delete: if isAdmin();
 }
