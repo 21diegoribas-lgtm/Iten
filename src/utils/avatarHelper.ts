@@ -311,7 +311,7 @@ function renderAccessory(accessory: string, idNum: number): string {
 }
 
 // Build 50 Unique Preset Avatars!
-export const AVATAR_PRESETS_50: AvatarPreset[] = [
+const CHIBI_AVATAR_PRESETS_50: AvatarPreset[] = [
   // 01-10: Học sinh nam chibi
   {
     id: 'avatar-01',
@@ -772,6 +772,64 @@ export const AVATAR_PRESETS_50: AvatarPreset[] = [
     svgUrl: generatePresetSvg(50, 'mascot', 'spiky', '#D97706', '#FFDFC4', '#F59E0B', ['#FEF3C7', '#FDE68A'], 'star', 'wizard_hat')
   }
 ];
+
+const MEME_NAMES = [
+  'Hết Nước Chấm', 'Ủa Alo', 'Quá Trời Quá Đất', 'Ét Ô Ét', 'Flex Nhẹ',
+  'Xin Vía', 'Keo Lì', 'Slay Học Đường', 'Mãi Đỉnh', 'Cười Xỉu',
+  'Không Thể Tin', 'Đang Tải Não', 'Não Cá Vàng', 'Deadline Dí', 'Chill Học Bài',
+  'Mắt Chữ A', 'Mood Hôm Nay', 'Bình Tĩnh Nào', 'Ô Dề', 'Rồi Xong Luôn',
+  'Biết Ngay Mà', 'Khó Vậy Cũng Nghĩ Ra', 'Nỗ Lực Ảo', 'Điểm Mười Đâu', 'Nghe Hợp Lý',
+  'Học Bá Online', 'Tới Công Chuyện', 'Không Sao Đâu', 'Thắng Đời Một Không', 'Tỉnh Táo Lên',
+  'Cạn Lời', 'Đứng Hình', 'Ngơ Ngác', 'Tự Hào Ghê', 'Cố Lên Bạn Ơi',
+  'Làm Được Mà', 'Wow Luôn', 'Quá Tuyệt Vời', 'Chờ Một Chút', 'Nay Tôi Ổn',
+  'Học Là Chính', 'Vui Là Mười', 'Tự Tin Lên', 'Sắp Xong Rồi', 'Đỉnh Của Chóp',
+  'Không Hề Giả Trân', 'Hơi Bị Hay', 'Cười Nhẹ', 'Nghiêm Túc Nè', 'Golden Meme',
+] as const;
+
+function generateMemeSvg(idNum: number, label: string): string {
+  const palettes = [
+    ['#FEF3C7', '#F59E0B', '#78350F'], ['#DBEAFE', '#38BDF8', '#0C4A6E'],
+    ['#FCE7F3', '#F472B6', '#831843'], ['#D1FAE5', '#34D399', '#064E3B'],
+    ['#EDE9FE', '#A78BFA', '#4C1D95'], ['#FFEDD5', '#FB923C', '#7C2D12'],
+  ];
+  const [background, accent, ink] = palettes[(idNum - 1) % palettes.length];
+  const face = (idNum - 1) % 6;
+  const eyes = [
+    '<circle cx="37" cy="42" r="5"/><circle cx="63" cy="42" r="5"/>',
+    '<path d="M30 44 Q37 34 44 44"/><path d="M56 44 Q63 34 70 44"/>',
+    '<circle cx="37" cy="41" r="7"/><circle cx="63" cy="41" r="7"/><circle cx="35" cy="39" r="2" fill="white"/><circle cx="61" cy="39" r="2" fill="white"/>',
+    '<path d="M31 39 L43 45 M43 39 L31 45"/><path d="M57 39 L69 45 M69 39 L57 45"/>',
+    '<path d="M31 43 Q37 39 43 43"/><circle cx="63" cy="42" r="5"/>',
+    '<rect x="31" y="37" width="12" height="10" rx="3"/><rect x="57" y="37" width="12" height="10" rx="3"/>',
+  ][face];
+  const mouths = [
+    '<path d="M39 56 Q50 68 61 56" fill="#FB7185"/>',
+    '<ellipse cx="50" cy="58" rx="8" ry="10" fill="#FB7185"/>',
+    '<path d="M40 60 Q50 52 60 60"/>',
+    '<path d="M42 58 L58 58"/>',
+    '<path d="M40 55 Q50 64 60 55" fill="#FB7185"/>',
+    '<path d="M42 58 Q50 54 58 58"/>',
+  ][face];
+  const shortLabel = label.length > 17 ? `${label.slice(0, 16)}…` : label;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <defs><linearGradient id="m${idNum}" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${background}"/><stop offset="1" stop-color="${accent}"/></linearGradient></defs>
+    <circle cx="50" cy="50" r="48" fill="url(#m${idNum})" stroke="white" stroke-width="3"/>
+    <path d="M22 48 C22 21 78 21 78 48 C78 73 67 79 50 79 C33 79 22 73 22 48Z" fill="#FFF7ED" stroke="${ink}" stroke-width="2.5"/>
+    <g fill="${ink}" stroke="${ink}" stroke-width="3" stroke-linecap="round">${eyes}${mouths}</g>
+    <path d="M21 31 L13 18 L32 24 M79 31 L87 18 L68 24" fill="${accent}" stroke="${ink}" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="10" y="78" width="80" height="16" rx="8" fill="${ink}" opacity=".92"/>
+    <text x="50" y="89" fill="white" font-family="Arial,sans-serif" font-size="8.5" font-weight="700" text-anchor="middle">${shortLabel}</text>
+  </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+// Preserve avatar IDs and categories so existing users keep their selection.
+export const AVATAR_PRESETS_50: AvatarPreset[] = CHIBI_AVATAR_PRESETS_50.map((avatar, index) => ({
+  ...avatar,
+  name: MEME_NAMES[index],
+  description: `Meme reaction học đường: ${MEME_NAMES[index]}.`,
+  svgUrl: generateMemeSvg(index + 1, MEME_NAMES[index]),
+}));
 
 // Helper to resolve an avatar object or SVG string from a user object
 export function getAvatarById(avatarId?: string): AvatarPreset {

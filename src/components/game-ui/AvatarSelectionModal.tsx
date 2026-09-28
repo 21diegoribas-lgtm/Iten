@@ -83,10 +83,10 @@ export const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
             </div>
             <div>
               <h2 className="text-xl sm:text-2xl font-black tracking-wide text-yellow-100 drop-shadow-[0_2px_2px_rgba(0,0,0,0.4)] uppercase">
-                {isInitialSetup ? 'THIẾT LẬP NHÂN VẬT CHIBI CỦA BẠN' : 'CHỌN NHÂN VẬT AVATAR'}
+                {isInitialSetup ? 'CHỌN MEME ĐẠI DIỆN CỦA BẠN' : 'CHỌN MEME AVATAR'}
               </h2>
               <p className="text-xs text-amber-100 font-medium">
-                Chọn 1 trong 50 avatar Chibi độc đáo để sử dụng xuyên suốt ITEN!
+                Chọn 1 trong 50 meme reaction học đường để sử dụng xuyên suốt ITEN!
               </p>
             </div>
           </div>
@@ -174,11 +174,11 @@ export const AvatarSelectionModal: React.FC<AvatarSelectionModalProps> = ({
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                 {[
                   { id: 'all', label: 'Tất cả (50)' },
-                  { id: 'male', label: 'Nam Chibi' },
-                  { id: 'female', label: 'Nữ Chibi' },
-                  { id: 'personality', label: 'Cá tính' },
-                  { id: 'accessory', label: 'Phụ kiện' },
-                  { id: 'mascot', label: 'Mascot' }
+                  { id: 'male', label: 'Phản ứng vui' },
+                  { id: 'female', label: 'Dễ thương' },
+                  { id: 'personality', label: 'Mood học đường' },
+                  { id: 'accessory', label: 'Viral' },
+                  { id: 'mascot', label: 'Đặc biệt' }
                 ].map(tab => (
                   <button
                     key={tab.id}
