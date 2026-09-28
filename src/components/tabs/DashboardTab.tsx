@@ -478,8 +478,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   e.preventDefault();
   if (!notifTitle || !notifContent) return;
 
-  soundFx.playSuccess();
-
   try {
     await onAddNotification({
       id: 'n_' + Date.now(),
@@ -512,6 +510,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
     setNotifTitle('');
     setNotifContent('');
+    soundFx.playSuccess();
     alert('Đã gửi thông báo thành công!');
   } catch (error) {
     console.error('Lỗi đăng thông báo:', error);

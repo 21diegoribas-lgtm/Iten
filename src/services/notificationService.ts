@@ -18,6 +18,12 @@ import type { User } from '../types';
 
 export const NOTIFICATIONS_COLLECTION = 'notifications';
 
+function withoutUndefined(value: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, item]) => item !== undefined)
+  );
+}
+
 const parseFirestoreDateField = (val: unknown): string => {
   if (!val) return '';
   if (typeof val === 'string') return val;
@@ -172,7 +178,7 @@ export async function setNotification(
   await setDoc(
     notificationRef,
     {
-      ...data,
+      ...withoutUndefined(data),
       createdAt: serverTimestamp(),
     },
     { merge: true }
@@ -202,7 +208,7 @@ export async function updateNotification(
   } = updates;
 
   await updateDoc(notificationRef, {
-    ...data,
+    ...withoutUndefined(data),
     updatedAt: serverTimestamp(),
   });
 }
