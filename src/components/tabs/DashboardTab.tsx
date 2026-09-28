@@ -65,6 +65,8 @@ const HIGH_SCHOOL_SUBJECTS = [
 ] as const;
 
 const STUDENT_GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1OauuPrFn8_BEZ8TW36DXP2ax7wM5kncdhAV70LG5DZQ/edit?usp=sharing';
+const VIETNAMESE_NAME_COLLATOR = new Intl.Collator('vi', { sensitivity: 'base' });
+const getGivenName = (fullName: string) => fullName.trim().split(/\s+/).pop() || '';
 
 interface DashboardTabProps {
   currentUser: User;
@@ -381,7 +383,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         const matchesTeam = selectedTeamFilter === 'all' || st.team === selectedTeamFilter;
         return matchesYear && matchesClass && matchesSearch && matchesTeam;
       })
-      .sort((a, b) => a.fullName.localeCompare(b.fullName, 'vi', { sensitivity: 'base' }));
+      .sort((a, b) => {
+        const givenNameOrder = VIETNAMESE_NAME_COLLATOR.compare(
+          getGivenName(a.fullName),
+          getGivenName(b.fullName),
+        );
+        return givenNameOrder || VIETNAMESE_NAME_COLLATOR.compare(a.fullName, b.fullName);
+      });
   }, [students, classesList, selectedAcademicYearFilter, selectedClassFilter, studentSearchQuery, selectedTeamFilter, classAcademicYearMap]);
 
   const exportFilteredStudents = () => {
@@ -1989,7 +1997,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
                   <h4 className="font-extrabold text-slate-800 text-base flex items-center gap-2">
-                    <span>👥</span> Danh sách Hồ sơ Học sinh ({filteredStudentsList.length} / {students.length} học sinh)
+                    <span>👥</span> Danh sách Hồ sơ Học sinh ({filteredStudentsList.length} học sinh)
                   </h4>
                   <p className="text-xs text-slate-500">Tra cứu, lọc theo năm học, theo lớp, tìm kiếm từ từ khóa và phân loại theo tổ</p>
                 </div>
