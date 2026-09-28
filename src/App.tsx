@@ -8,7 +8,7 @@
 import { auth } from './lib/firebase';
 import { getClassById, getClasses } from './services/classService';
 import { updateClass, setClass, deleteClass } from './services/classService';
-import { getNotificationsForUser, setNotification } from './services/notificationService';
+import { getNotificationsForUser, markNotificationRead, setNotification } from './services/notificationService';
 import React, { useEffect, useState } from 'react';
 import { getStudents, getStudentsByClass } from './services/studentService';
 import { User, MainTabType, NotificationItem, TimetableEntry, CleaningSchedule, DisciplineRecord, LearningRecord, Complaint, AccountRequest, AttendanceRecord, SpyGameMission, FlowerGameConfig, RacingGameConfig, KeyboardHeroTask, MemoryCardGameConfig, PersonalStorageItem, TeacherWorkSchedule, TeacherWeeklyTimetable, ClassFundItem, ClassFundExpense, ClassLogbookWeek, PointUsageTransaction, ActivityPointRecord, ClassItem } from './types';
@@ -601,7 +601,8 @@ if (authLoading) {
 }}
         onOpenAvatarSelection={() => setShowAvatarModal(true)}
         onReadNotification={id => {
-          setNotifications(notifications.map(n => n.id === id ? { ...n, isRead: true } : n));
+          setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+          void markNotificationRead(currentUser.id, id).catch(error => console.error('[Mark Notification Read Error]', error));
         }}
       />
 

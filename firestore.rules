@@ -292,6 +292,18 @@ allow get, list: if isAuthenticated() && (
   allow update, delete: if isAdmin();
 }
 
+match /notificationReads/{readId} {
+  allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+  allow create: if isAuthenticated() &&
+    request.resource.data.userId == request.auth.uid &&
+    request.resource.data.notificationId is string;
+  allow update: if isAuthenticated() &&
+    resource.data.userId == request.auth.uid &&
+    request.resource.data.userId == resource.data.userId &&
+    request.resource.data.notificationId == resource.data.notificationId;
+  allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+}
+
     // ===============================================================
     // 6. FLOWER GAMES COLLECTION
     // One document per class: configuration and question bank.
