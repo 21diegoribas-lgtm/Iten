@@ -355,19 +355,21 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
   // Filtered students by Academic Year, Class, Team, and Search Query
   const filteredStudentsList = useMemo(() => {
-    return students.filter(st => {
-      const stClass = st.className || 'Chưa gán lớp';
-      const stAcademicYear = st.academicYear || classAcademicYearMap[stClass] || classAcademicYearMap[st.classId || ''] || '2025 - 2026';
-      
-      const matchesYear = selectedAcademicYearFilter === 'all' || stAcademicYear === selectedAcademicYearFilter;
-      const matchesClass = selectedClassFilter === 'all' || stClass === selectedClassFilter || st.classId === selectedClassFilter;
-      const matchesSearch = !studentSearchQuery || 
-                            st.fullName.toLowerCase().includes(studentSearchQuery.toLowerCase()) || 
-                            (st.phone && st.phone.includes(studentSearchQuery)) ||
-                            (st.email && st.email.toLowerCase().includes(studentSearchQuery.toLowerCase()));
-      const matchesTeam = selectedTeamFilter === 'all' || st.team === selectedTeamFilter;
-      return matchesYear && matchesClass && matchesSearch && matchesTeam;
-    });
+    return students
+      .filter(st => {
+        const stClass = st.className || 'Chưa gán lớp';
+        const stAcademicYear = st.academicYear || classAcademicYearMap[stClass] || classAcademicYearMap[st.classId || ''] || '2025 - 2026';
+
+        const matchesYear = selectedAcademicYearFilter === 'all' || stAcademicYear === selectedAcademicYearFilter;
+        const matchesClass = selectedClassFilter === 'all' || stClass === selectedClassFilter || st.classId === selectedClassFilter;
+        const matchesSearch = !studentSearchQuery ||
+                              st.fullName.toLowerCase().includes(studentSearchQuery.toLowerCase()) ||
+                              (st.phone && st.phone.includes(studentSearchQuery)) ||
+                              (st.email && st.email.toLowerCase().includes(studentSearchQuery.toLowerCase()));
+        const matchesTeam = selectedTeamFilter === 'all' || st.team === selectedTeamFilter;
+        return matchesYear && matchesClass && matchesSearch && matchesTeam;
+      })
+      .sort((a, b) => a.fullName.localeCompare(b.fullName, 'vi', { sensitivity: 'base' }));
   }, [students, selectedAcademicYearFilter, selectedClassFilter, studentSearchQuery, selectedTeamFilter, classAcademicYearMap]);
 
   const exportFilteredStudents = () => {
