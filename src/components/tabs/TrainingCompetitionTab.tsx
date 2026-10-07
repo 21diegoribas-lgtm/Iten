@@ -233,6 +233,7 @@ export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
         id: 'put_train_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
         studentId: student.id,
         studentName: student.fullName,
+        classId: student.classId,
         className: student.className || '8A1',
         team: student.team || 'Tổ 1',
         pointType: 'training',

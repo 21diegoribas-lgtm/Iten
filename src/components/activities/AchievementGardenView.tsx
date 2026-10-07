@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   User,
   DisciplineRecord,
@@ -126,12 +126,13 @@ const scopedStudents =
   currentUser.role === 'admin'
     ? students
     : currentUser.role === 'teacher'
-      ? students.filter(
-          st =>
-            (currentUser.classId && st.classId === currentUser.classId) ||
-            (currentUser.className && st.className === currentUser.className)
-        )
+      ? students
       : students.filter(st => st.id === currentUser.id);
+
+  const availableClassIds = useMemo(
+    () => [...new Set(students.map(student => student.classId).filter((classId): classId is string => Boolean(classId)))],
+    [students]
+  );
 
   // Category tabs: all / learning / discipline
   const [gardenSection, setGardenSection] = useState<'all' | 'learning' | 'discipline'>('all');
@@ -146,6 +147,38 @@ const scopedStudents =
   const [selectedStudentForBonus, setSelectedStudentForBonus] = useState<string>(
     currentUser.role === 'student' ? currentUser.id : students[0]?.id || ''
   );
+  const [selectedClassId, setSelectedClassId] = useState<string>(() => {
+    if (currentUser.role === 'student') return currentUser.classId || '';
+    return students[0]?.classId || availableClassIds[0] || '';
+  });
+  const classScopedStudents = useMemo(() => {
+    if (currentUser.role === 'student') return scopedStudents;
+    if (currentUser.role === 'teacher' || currentUser.role === 'admin') {
+      return students.filter(student => student.classId === selectedClassId);
+    }
+    return [];
+  }, [currentUser.role, scopedStudents, selectedClassId, students]);
+
+  useEffect(() => {
+    if (currentUser.role === 'student') {
+      const studentClassId = currentUser.classId || '';
+      setSelectedClassId(previous => previous === studentClassId ? previous : studentClassId);
+      return;
+    }
+
+    const selectedStudentClassId = students.find(
+      student => student.id === selectedStudentForBonus
+    )?.classId;
+
+    if (selectedStudentClassId) {
+      setSelectedClassId(previous => previous === selectedStudentClassId ? previous : selectedStudentClassId);
+      return;
+    }
+
+    setSelectedClassId(previous =>
+      availableClassIds.includes(previous) ? previous : availableClassIds[0] || ''
+    );
+  }, [availableClassIds, currentUser.classId, currentUser.role, selectedStudentForBonus, students]);
 
   // State for Spin Activation & Bonus Classification Target
   const [isSpinActive, setIsSpinActive] = useState<boolean>(() => {
@@ -287,9 +320,12 @@ const scopedStudents =
   };
 
   const handleResetStudentSpins = async (studentId?: string) => {
-    if (!currentUser.classId || !isTeacherOrAdmin) return;
+    if (!isTeacherOrAdmin) return;
     if (studentId) {
-      try { await resetGardenSpinUsage(currentUser.classId, selectedSpinWeek, studentId); }
+      const targetStudent = students.find(student => student.id === studentId);
+      const targetClassId = targetStudent?.classId;
+      if (!targetClassId) return;
+      try { await resetGardenSpinUsage(targetClassId, selectedSpinWeek, studentId); }
       catch (error) { alert(error instanceof Error ? error.message : 'Không thể khôi phục lượt quay.'); return; }
       setUsedSpinsMap((prev) => {
         const updated = { ...prev };
@@ -303,8 +339,9 @@ const scopedStudents =
       });
       soundFx.playSuccess();
     } else {
+      if (!selectedClassId) return;
       if (window.confirm('Khôi phục lượt quay cho tất cả học sinh?')) {
-        try { await resetGardenSpinUsage(currentUser.classId, selectedSpinWeek); }
+        try { await resetGardenSpinUsage(selectedClassId, selectedSpinWeek); }
         catch (error) { alert(error instanceof Error ? error.message : 'Không thể khôi phục lượt quay.'); return; }
         setUsedSpinsMap({});
         try {
@@ -340,15 +377,23 @@ const scopedStudents =
     }
     return 'overall';
   });
-  const gardenLoaded = useRef(false);
+  const [loadedConfigClassId, setLoadedConfigClassId] = useState('');
 
   useEffect(() => {
-    const classId = currentUser.classId;
-    if (!classId) return;
+    const classId = selectedClassId;
+    setLoadedConfigClassId('');
+    setSpinHistory([]);
+    if (!classId) {
+      setIsSpinActive(true);
+      setSpinAwardTarget('learning');
+      setSelectedSpinWeek(4);
+      setPointRanges(DEFAULT_POINT_RANGES);
+      setScoreTypeBasis('overall');
+      setRewardConfig(DEFAULT_REWARD_CONFIG);
+      return;
+    }
     let cancelled = false;
-    gardenLoaded.current = false;
-    loadGardenConfig(classId).then(async config => {
-      const history = await loadGardenSpinHistory(classId);
+    Promise.all([loadGardenConfig(classId), loadGardenSpinHistory(classId)]).then(([config, history]) => {
       if (cancelled) return;
       if (config) {
         setIsSpinActive(config.isSpinActive);
@@ -366,22 +411,22 @@ const scopedStudents =
         setRewardConfig(DEFAULT_REWARD_CONFIG);
       }
       setSpinHistory(history);
-      gardenLoaded.current = true;
-    }).catch(error => console.error('[Garden load]', error));
+      setLoadedConfigClassId(classId);
+    }).catch(error => {
+      if (!cancelled) console.error('[Garden load]', error);
+    });
     return () => { cancelled = true; };
-  }, [currentUser.classId]);
+  }, [selectedClassId]);
 
   useEffect(() => {
-    if (!currentUser.classId) {
-      setUsedSpinsMap({});
-      return;
-    }
+    setUsedSpinsMap({});
+    if (!selectedClassId || loadedConfigClassId !== selectedClassId) return;
     let cancelled = false;
-    loadGardenSpinUsage(currentUser.classId, selectedSpinWeek)
+    loadGardenSpinUsage(selectedClassId, selectedSpinWeek)
       .then(usage => { if (!cancelled) setUsedSpinsMap(usage); })
-      .catch(error => console.error('[Garden usage load]', error));
+      .catch(error => { if (!cancelled) console.error('[Garden usage load]', error); });
     return () => { cancelled = true; };
-  }, [currentUser.classId, selectedSpinWeek]);
+  }, [loadedConfigClassId, selectedClassId, selectedSpinWeek]);
 
  useEffect(() => {
   if (currentUser.role === 'student') {
@@ -399,10 +444,10 @@ const scopedStudents =
 ]);
 
   useEffect(() => {
-    if (!gardenLoaded.current || !isTeacherOrAdmin || !currentUser.classId) return;
-    saveGardenConfig({ classId: currentUser.classId, isSpinActive, spinAwardTarget, selectedSpinWeek, pointRanges, scoreTypeBasis, rewardConfig })
+    if (!isTeacherOrAdmin || !selectedClassId || loadedConfigClassId !== selectedClassId) return;
+    saveGardenConfig({ classId: selectedClassId, isSpinActive, spinAwardTarget, selectedSpinWeek, pointRanges, scoreTypeBasis, rewardConfig })
       .catch(error => console.error('[Garden config save]', error));
-  }, [currentUser.classId, isTeacherOrAdmin, isSpinActive, spinAwardTarget, selectedSpinWeek, pointRanges, scoreTypeBasis, rewardConfig]);
+  }, [loadedConfigClassId, selectedClassId, isTeacherOrAdmin, isSpinActive, spinAwardTarget, selectedSpinWeek, pointRanges, scoreTypeBasis, rewardConfig]);
 
   const [isStatsSettingsOpen, setIsStatsSettingsOpen] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<'rules' | 'rewardConfig' | 'studentStats' | 'history'>('rules');
@@ -1019,6 +1064,18 @@ const scopedStudents =
   const handleSpinLuckyWheel = () => {
     if (isSpinning) return;
 
+    const targetStudent = students.find(student => student.id === selectedStudentForBonus);
+    const targetClassId = targetStudent?.classId;
+    if (
+      !targetStudent ||
+      !targetClassId ||
+      !selectedClassId ||
+      targetClassId !== selectedClassId ||
+      loadedConfigClassId !== selectedClassId
+    ) {
+      return;
+    }
+
     // Verify remaining spins for the selected student
     const spinInfo = getStudentSpinInfo(selectedStudentForBonus);
     if (spinInfo.remainingSpins <= 0 && currentUser.role === 'student') {
@@ -1046,11 +1103,8 @@ const scopedStudents =
     setWheelRotation(newRotation);
 
     const finalCategory = spinTargetCategory || effectiveAwardCategory;
-    const targetStudentObj = scopedStudents.find(
-  (s) => s.id === selectedStudentForBonus
-);
-    const targetName = targetStudentObj?.fullName || currentUser.fullName;
-    const classId = targetStudentObj?.classId || 'c1';
+    const targetName = targetStudent.fullName;
+    const classId = targetClassId;
 
     const spinTransactionId = 'spin_tx_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
     const pointTypeLabel = finalCategory === 'learning' ? 'Điểm HĐ học tập' : 'Điểm HĐ rèn luyện';
@@ -1058,10 +1112,6 @@ const scopedStudents =
 
     setTimeout(async () => {
       setIsSpinning(false);
-      if (!targetStudentObj || !targetStudentObj.classId) {
-        alert('Học sinh chưa được gán lớp học.');
-        return;
-      }
 
       if (finalCategory === 'learning') {
         const newLearningRec: LearningRecord = {

@@ -9,7 +9,7 @@ import { auth } from './lib/firebase';
 import { getClassById, getClasses } from './services/classService';
 import { updateClass, setClass, deleteClass } from './services/classService';
 import { getNotificationsForUser, markNotificationRead, setNotification } from './services/notificationService';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { getStudents, getStudentsByClass, updateStudent } from './services/studentService';
 import { User, MainTabType, NotificationItem, TimetableEntry, CleaningSchedule, DisciplineRecord, LearningRecord, Complaint, AccountRequest, AttendanceRecord, SpyGameMission, FlowerGameConfig, RacingGameConfig, KeyboardHeroTask, MemoryCardGameConfig, PersonalStorageItem, TeacherWorkSchedule, TeacherWeeklyTimetable, ClassFundItem, ClassFundExpense, ClassLogbookWeek, PointUsageTransaction, ActivityPointRecord, ClassItem } from './types';
 import { Sidebar } from './components/Sidebar';
@@ -231,25 +231,110 @@ useEffect(() => {
     }
   };
 
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [accountRequests, setAccountRequests] = useState<AccountRequest[]>([]);
+  const [students, setStudents] = useState<User[]>([]);
+  const managedClassIds = useMemo(() => {
+    if (!currentUser) return [];
+
+    if (currentUser.role === 'admin') {
+      return classesList.map(classItem => classItem.id);
+    }
+
+    if (currentUser.role === 'teacher') {
+      const classIds = classesList
+        .filter(classItem => classItem.homeroomTeacher === currentUser.fullName)
+        .map(classItem => classItem.id);
+
+      if (currentUser.classId) classIds.push(currentUser.classId);
+      return [...new Set(classIds)];
+    }
+
+    if (currentUser.role === 'student' && currentUser.classId) {
+      return [currentUser.classId];
+    }
+
+    return [];
+  }, [classesList, currentUser]);
+
+  const managedStudents = useMemo(() => {
+    if (!currentUser) return [];
+    if (currentUser.role === 'admin') return students;
+
+    if (currentUser.role === 'teacher') {
+      const managedClassIdSet = new Set(managedClassIds);
+      return students.filter(student =>
+        Boolean(student.classId) && managedClassIdSet.has(student.classId as string)
+      );
+    }
+
+    if (currentUser.role === 'student') {
+      return students.filter(student =>
+        Boolean(currentUser.classId) && student.classId === currentUser.classId
+      );
+    }
+
+    return [];
+  }, [currentUser, managedClassIds, students]);
+
+  const [selectedSpyClassId, setSelectedSpyClassId] = useState('');
+  useEffect(() => {
+    if (!currentUser) {
+      setSelectedSpyClassId('');
+      return;
+    }
+
+    if (currentUser.role === 'student') {
+      setSelectedSpyClassId(currentUser.classId || '');
+      return;
+    }
+
+    if (currentUser.role === 'teacher' || currentUser.role === 'admin') {
+      setSelectedSpyClassId(currentClassId =>
+        currentClassId && managedClassIds.includes(currentClassId)
+          ? currentClassId
+          : managedClassIds[0] || ''
+      );
+      return;
+    }
+
+    setSelectedSpyClassId('');
+  }, [currentUser?.classId, currentUser?.id, currentUser?.role, managedClassIds]);
+
+  const spyClassStudents = useMemo(
+    () => selectedSpyClassId
+      ? managedStudents.filter(student => student.classId === selectedSpyClassId)
+      : [],
+    [managedStudents, selectedSpyClassId]
+  );
+
   useEffect(() => {
     if (!currentUser) {
       setLearningRecords([]);
       setDisciplineRecords([]);
       return;
     }
+
     let cancelled = false;
     setLearningRecords([]);
     setDisciplineRecords([]);
-    const activityRequest = currentUser.role === 'student'
+
+    const dedupeById = <T extends { id: string }>(groups: T[][]): T[] =>
+      Array.from(new Map(groups.flat().map(record => [record.id, record])).values());
+
+    const activityRequest: Promise<ActivityPointRecord[]> = currentUser.role === 'student'
       ? loadActivityPointsForUser(currentUser.id)
-      : loadActivityPointsForClass(currentUser.classId || '');
-    const loadManual = <T,>(collectionName: 'learningRecords' | 'disciplineRecords') => {
+      : Promise.all(managedClassIds.map(classId => loadActivityPointsForClass(classId)))
+          .then(results => dedupeById(results));
+
+    const loadManual = <T extends { id: string }>(collectionName: 'learningRecords' | 'disciplineRecords') => {
       if (currentUser.role === 'admin') return loadAppCollection<T>(collectionName);
       if (currentUser.role === 'student') return loadAppCollection<T>(collectionName, 'studentId', currentUser.id);
-      return currentUser.classId
-        ? loadAppCollection<T>(collectionName, 'classId', currentUser.classId)
-        : Promise.resolve([]);
+      return Promise.all(
+        managedClassIds.map(classId => loadAppCollection<T>(collectionName, 'classId', classId))
+      ).then(results => dedupeById(results));
     };
+
     Promise.all([
       activityRequest,
       loadManual<LearningRecord>('learningRecords'),
@@ -263,11 +348,10 @@ useEffect(() => {
         setDisciplineRecords([...training, ...manualTraining.filter(item => !training.some(saved => saved.id === item.id))]);
       })
       .catch(error => console.error('[Load Point Records Error]', error));
+
     return () => { cancelled = true; };
-  }, [currentUser?.id, currentUser?.role, currentUser?.classId]);
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [accountRequests, setAccountRequests] = useState<AccountRequest[]>([]);
-  const [students, setStudents] = useState<User[]>([]);
+  }, [currentUser?.id, currentUser?.role, managedClassIds]);
+
   useEffect(() => {
     if (!currentUser) {
       setStudents([]);
@@ -342,25 +426,46 @@ useEffect(() => {
 }, [classesList, classesLoading, currentUser]);
 
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const attendanceStudentClassId = currentUser?.role === 'student' ? currentUser.classId : undefined;
   useEffect(() => {
-    const classId = currentUser?.classId;
     setAttendanceRecords([]);
-    if (!classId) return;
+    if (!currentUser) return;
+
     let cancelled = false;
-    loadAttendanceRecords(classId).then(records => { if (!cancelled) setAttendanceRecords(records); })
+    const request = currentUser.role === 'student'
+      ? attendanceStudentClassId
+        ? loadAttendanceRecords(attendanceStudentClassId)
+        : Promise.resolve([])
+      : Promise.all(managedClassIds.map(classId => loadAttendanceRecords(classId)))
+          .then(results => Array.from(
+            new Map(results.flat().map(record => [record.id, record])).values()
+          ));
+
+    request
+      .then(records => { if (!cancelled) setAttendanceRecords(records); })
       .catch(error => console.error('[Load Attendance Error]', error));
+
     return () => { cancelled = true; };
-  }, [currentUser?.classId, currentUser?.id]);
+  }, [attendanceStudentClassId, currentUser?.id, currentUser?.role, managedClassIds]);
   const [spyMission, setSpyMission] = useState<SpyGameMission>(() => emptySpyMission());
+  const [spyMissionLoading, setSpyMissionLoading] = useState(false);
+  const spyMissionReady = Boolean(selectedSpyClassId) &&
+    !spyMissionLoading &&
+    spyMission.classId === selectedSpyClassId;
   useEffect(() => {
-    const classId = currentUser?.classId;
-    setSpyMission(emptySpyMission(classId || ''));
-    if (!classId) return;
+    const classId = selectedSpyClassId;
+    setSpyMission(emptySpyMission(classId));
+    if (!classId) {
+      setSpyMissionLoading(false);
+      return;
+    }
     let cancelled = false;
+    setSpyMissionLoading(true);
     getSpyMission(classId).then(mission => { if (!cancelled && mission) setSpyMission(mission); })
-      .catch(error => console.error('[Load Spy Mission Error]', error));
+      .catch(error => { if (!cancelled) console.error('[Load Spy Mission Error]', error); })
+      .finally(() => { if (!cancelled) setSpyMissionLoading(false); });
     return () => { cancelled = true; };
-  }, [currentUser?.classId, currentUser?.id]);
+  }, [currentUser?.id, selectedSpyClassId]);
   const [flowerConfig, setFlowerConfig] = useState<FlowerGameConfig>(() => createEmptyFlowerGameConfig(''));
   const [flowerLoadState, setFlowerLoadState] = useState('Đang tải trò chơi...');
 
@@ -437,6 +542,27 @@ useEffect(() => {
     const className = currentUser.className || '';
     const scoped = <T,>(name: AppCollectionName, field: string, value: string) =>
       isCurrentAdmin ? loadAppCollection<T>(name) : (value ? loadAppCollection<T>(name, field, value) : Promise.resolve([]));
+    const pointUsagePromise = isCurrentAdmin
+      ? loadAppCollection<PointUsageTransaction>('pointUsageTransactions')
+      : currentUser.role === 'student'
+        ? loadAppCollection<PointUsageTransaction>('pointUsageTransactions', 'studentId', currentUser.id)
+        : managedClassIds.length === 0
+          ? Promise.resolve<PointUsageTransaction[]>([])
+          : Promise.all(
+              managedClassIds.map(managedClassId =>
+                loadAppCollection<PointUsageTransaction>(
+                  'pointUsageTransactions',
+                  'classId',
+                  managedClassId,
+                ),
+              ),
+            ).then(results =>
+              Array.from(
+                new Map(
+                  results.flat().map(record => [record.id, record]),
+                ).values(),
+              ),
+            );
 
     Promise.all([
       scoped<TimetableEntry>('timetables', 'classId', classId),
@@ -449,9 +575,7 @@ useEffect(() => {
       scoped<ClassFundItem>('classFunds', 'classId', classId),
       scoped<ClassFundExpense>('classExpenses', 'classId', classId),
       scoped<ClassLogbookWeek>('classLogbooks', 'classId', classId),
-      currentUser.role === 'student'
-        ? loadAppCollection<PointUsageTransaction>('pointUsageTransactions', 'studentId', currentUser.id)
-        : scoped<PointUsageTransaction>('pointUsageTransactions', 'className', className),
+      pointUsagePromise,
     ]).then(([loadedTimetables, schedules, weekly, loadedComplaints, storage, funds, expenses, books, usages]) => {
       if (cancelled) return;
       setTimetables(loadedTimetables);
@@ -469,7 +593,7 @@ useEffect(() => {
     });
 
     return () => { cancelled = true; };
-  }, [currentUser?.id, currentUser?.role, currentUser?.classId, currentUser?.className]);
+  }, [currentUser?.id, currentUser?.role, currentUser?.classId, currentUser?.className, managedClassIds]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -493,16 +617,23 @@ useEffect(() => {
   const handleAddPointUsageTransaction = (tx: PointUsageTransaction) => {
   if (!canManage) return;
 
-  if (currentUser?.role === 'teacher') {
-    const student = students.find(s => s.id === tx.studentId);
+  const student = students.find(s => s.id === tx.studentId);
+  if (!student?.classId) return;
 
-    if (!student || student.classId !== currentUser.classId) {
-      return;
-    }
+  if (tx.classId && tx.classId !== student.classId) {
+    console.warn('[Add Point Usage Blocked] Transaction classId does not match student classId.');
+    return;
   }
 
-  void saveAppDocument('pointUsageTransactions', tx).catch(error => console.error('[Save Point Usage Error]', error));
-  setPointUsageTransactions(prev => [tx, ...prev]);
+  if (currentUser?.role === 'teacher' && !canManageClass(student.classId)) return;
+
+  const transactionToSave: PointUsageTransaction = {
+    ...tx,
+    classId: student.classId,
+  };
+
+  void saveAppDocument('pointUsageTransactions', transactionToSave).catch(error => console.error('[Save Point Usage Error]', error));
+  setPointUsageTransactions(prev => [transactionToSave, ...prev]);
 };
 
 const handleCancelPointUsageTransaction = (
@@ -514,13 +645,15 @@ const handleCancelPointUsageTransaction = (
   const target = pointUsageTransactions.find(t => t.id === id);
   if (!target) return;
 
-  if (currentUser?.role === 'teacher') {
-    const student = students.find(s => s.id === target.studentId);
+  const student = students.find(s => s.id === target.studentId);
+  if (!student?.classId) return;
 
-    if (!student || student.classId !== currentUser.classId) {
-      return;
-    }
+  if (target.classId && target.classId !== student.classId) {
+    console.warn('[Cancel Point Usage Blocked] Transaction classId does not match student classId.');
+    return;
   }
+
+  if (currentUser?.role === 'teacher' && !canManageClass(student.classId)) return;
 
   setPointUsageTransactions(prev => {
     const next = prev.map(t =>
@@ -713,15 +846,7 @@ onUpdateClassExpenses={exps => {
                 cleaning={cleaning}
                 cleaningLoading={cleaningLoading}
                 cleaningLoadError={cleaningLoadError}
-                students={
-  currentUser?.role === 'admin'
-    ? students
-    : students.filter(
-        s =>
-          s.classId === currentUser?.classId ||
-          s.className === currentUser?.className
-      )
-}
+                students={managedStudents}
                 teachers={teachers}
                classesList={
   currentUser?.role === 'admin'
@@ -1088,7 +1213,7 @@ onAddTeachersBulk={newTeachers => {
                 currentUser={currentUser}
                 disciplineRecords={disciplineRecords}
                 complaints={complaints}
-                students={currentUser.classId ? students.filter(student => student.classId === currentUser.classId) : students}
+                students={managedStudents}
                 pointUsageTransactions={pointUsageTransactions}
                 onAddPointUsageTransaction={handleAddPointUsageTransaction}
                 onCancelPointUsageTransaction={handleCancelPointUsageTransaction}
@@ -1201,7 +1326,12 @@ onDeleteLearningRecord={id => {
               <ActivitiesTab
                 flowerLoadState={flowerLoadState}
                 currentUser={currentUser}
-                students={students}
+                students={managedStudents}
+                selectedSpyClassId={selectedSpyClassId}
+                onSelectedSpyClassIdChange={setSelectedSpyClassId}
+                spyClassStudents={spyClassStudents}
+                spyMissionLoading={spyMissionLoading}
+                spyMissionReady={spyMissionReady}
                 attendanceRecords={attendanceRecords}
                 onUpdateAttendance={recs =>{
   const isOfficer = currentUser?.role === 'student' && Boolean(currentUser.position) && currentUser.position !== 'thành viên';
@@ -1219,22 +1349,93 @@ onDeleteLearningRecord={id => {
   setSpyMission(m);
 }}
                 onSaveSpyMission={async mission => {
+  if (!selectedSpyClassId || mission.classId !== selectedSpyClassId) {
+    console.warn('[Save Spy Mission Blocked] Mission classId does not match selected classId.');
+    throw new Error('Nhiệm vụ không thuộc lớp đang thao tác.');
+  }
+  const spyStudent = spyClassStudents.find(student => student.id === mission.spyStudentId);
+  if (!spyStudent?.classId || spyStudent.classId !== mission.classId) {
+    console.warn('[Save Spy Mission Blocked] Spy student does not belong to mission class.');
+    throw new Error('Học sinh gián điệp không thuộc lớp đang thao tác.');
+  }
   if (!canManageClass(mission.classId)) throw new Error('Bạn không có quyền sửa nhiệm vụ của lớp này.');
   await saveSpyMission(mission);
 }}
                 onCastSpyVote={async suspectId => {
-  if (!currentUser?.classId) throw new Error('Chưa xác định lớp học.');
-  await castSpyVote(currentUser.classId, currentUser.id, suspectId);
+  const missionClassId = spyMission.classId;
+  if (!currentUser || !missionClassId || !selectedSpyClassId || missionClassId !== selectedSpyClassId) {
+    throw new Error('Nhiệm vụ không thuộc lớp đang thao tác.');
+  }
+
+  const suspect = spyClassStudents.find(student => student.id === suspectId);
+  if (!suspect?.classId || suspect.classId !== missionClassId) {
+    throw new Error('Học sinh được bình chọn không thuộc lớp của nhiệm vụ.');
+  }
+
+  if (currentUser.role === 'student') {
+    if (currentUser.classId !== missionClassId) throw new Error('Bạn không thuộc lớp của nhiệm vụ này.');
+  } else if (currentUser.role === 'teacher') {
+    if (!canManageClass(missionClassId)) throw new Error('Bạn không có quyền thao tác nhiệm vụ của lớp này.');
+  } else if (currentUser.role !== 'admin') {
+    throw new Error('Bạn không có quyền bình chọn.');
+  }
+
+  await castSpyVote(missionClassId, currentUser.id, suspect.id);
 }}
                 onResetSpyVotes={async () => {
-  if (!currentUser?.classId) throw new Error('Chưa xác định lớp học.');
-  await resetSpyVotes(currentUser.classId, currentUser.id);
+  const missionClassId = spyMission.classId;
+  if (!currentUser || !missionClassId || !selectedSpyClassId || missionClassId !== selectedSpyClassId) {
+    throw new Error('Nhiệm vụ không thuộc lớp đang thao tác.');
+  }
+
+  if (currentUser.role === 'student') {
+    if (currentUser.classId !== missionClassId) throw new Error('Bạn không thuộc lớp của nhiệm vụ này.');
+  } else if (currentUser.role === 'teacher') {
+    if (!canManageClass(missionClassId)) throw new Error('Bạn không có quyền thao tác nhiệm vụ của lớp này.');
+  } else if (currentUser.role !== 'admin') {
+    throw new Error('Bạn không có quyền thu hồi phiếu.');
+  }
+
+  await resetSpyVotes(missionClassId, currentUser.id);
 }}
                 onClearAllSpyVotes={async () => {
-  if (!currentUser?.classId || !canManageClass(currentUser.classId)) throw new Error('Bạn không có quyền xóa phiếu.');
-  await clearAllSpyVotes(currentUser.classId);
+  const missionClassId = spyMission.classId;
+  if (!currentUser || !missionClassId || !selectedSpyClassId || missionClassId !== selectedSpyClassId) {
+    throw new Error('Nhiệm vụ không thuộc lớp đang thao tác.');
+  }
+  if (currentUser.role === 'teacher') {
+    if (!canManageClass(missionClassId)) throw new Error('Bạn không có quyền xóa phiếu của lớp này.');
+  } else if (currentUser.role !== 'admin') {
+    throw new Error('Bạn không có quyền xóa toàn bộ phiếu.');
+  }
+
+  await clearAllSpyVotes(missionClassId);
 }}
                 onFinishSpyMission={async (mission, points) => {
+  if (!selectedSpyClassId || !mission.classId || mission.classId !== selectedSpyClassId) {
+    throw new Error('Nhiệm vụ không thuộc lớp đang thao tác.');
+  }
+
+  const spyStudent = spyClassStudents.find(student => student.id === mission.spyStudentId);
+  if (!spyStudent?.classId || spyStudent.classId !== mission.classId) {
+    throw new Error('Học sinh gián điệp không thuộc lớp của nhiệm vụ.');
+  }
+
+  const hasInvalidSuspect = (mission.votes || []).some(vote => {
+    const suspect = spyClassStudents.find(student => student.id === vote.suspectId);
+    return !suspect?.classId || suspect.classId !== mission.classId;
+  });
+  if (hasInvalidSuspect) throw new Error('Phiếu bầu chứa học sinh không thuộc lớp của nhiệm vụ.');
+
+  const hasInvalidPoint = points.some(point => {
+    const targetStudent = spyClassStudents.find(student => student.id === point.userId);
+    return point.classId !== mission.classId ||
+      point.activityId !== mission.id ||
+      !targetStudent?.classId ||
+      targetStudent.classId !== mission.classId;
+  });
+  if (hasInvalidPoint) throw new Error('Danh sách điểm tổng kết không hợp lệ cho lớp của nhiệm vụ.');
+
   if (!canManageClass(mission.classId)) throw new Error('Bạn không có quyền tổng kết vòng chơi.');
   await finishSpyMissionAndAward(mission, points);
 }}

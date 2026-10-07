@@ -65,6 +65,11 @@ import {
 interface ActivitiesTabProps {
   currentUser: User;
   students: User[];
+  selectedSpyClassId: string;
+  onSelectedSpyClassIdChange: (classId: string) => void;
+  spyClassStudents: User[];
+  spyMissionLoading: boolean;
+  spyMissionReady: boolean;
   attendanceRecords: AttendanceRecord[];
   onUpdateAttendance: (recs: AttendanceRecord[]) => void;
   onSaveAttendance?: (recs: AttendanceRecord[]) => Promise<void>;
@@ -100,6 +105,11 @@ interface ActivitiesTabProps {
 export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
   currentUser,
   students,
+  selectedSpyClassId,
+  onSelectedSpyClassIdChange,
+  spyClassStudents,
+  spyMissionLoading,
+  spyMissionReady,
   attendanceRecords,
   onUpdateAttendance,
   onSaveAttendance,
@@ -829,9 +839,18 @@ export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
 
       {/* 4.2 – TRUY TÌM GIÁN ĐIỆP */}
       {activeActivity === 'spy' && (
-        <SpyGameView
+        !selectedSpyClassId ? (
+          <p role="status" className="rounded-xl bg-sky-50 p-4 text-sky-900">Chưa xác định lớp học.</p>
+        ) : !spyMissionReady ? (
+          <p role="status" className="rounded-xl bg-sky-50 p-4 text-sky-900">Đang tải trò chơi...</p>
+        ) : (
+          <SpyGameView
+          key={selectedSpyClassId}
           currentUser={currentUser}
-          students={students}
+          students={spyClassStudents}
+          selectedClassId={selectedSpyClassId}
+          onSelectedClassIdChange={onSelectedSpyClassIdChange}
+          spyMissionLoading={spyMissionLoading}
           spyMission={spyMission}
           onUpdateSpyMission={onUpdateSpyMission}
           onSaveSpyMission={onSaveSpyMission}
@@ -841,6 +860,7 @@ export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
           onFinishMission={onFinishSpyMission}
           onActivityPointSaved={onActivityPointSaved}
         />
+        )
       )}
 
       {/* 4.1 – ĐIỂM DANH */}

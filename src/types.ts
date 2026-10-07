@@ -253,6 +253,7 @@ export interface PointUsageTransaction {
   id: string;
   studentId: string;
   studentName: string;
+  classId?: string;
   className?: string;
   team?: string;
   pointType: 'academic' | 'training'; // 'academic': Điểm học tập, 'training': Điểm rèn luyện

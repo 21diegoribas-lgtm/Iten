@@ -31,6 +31,9 @@ import {
 interface SpyGameViewProps {
   currentUser: User;
   students: User[];
+  selectedClassId: string;
+  onSelectedClassIdChange: (classId: string) => void;
+  spyMissionLoading: boolean;
   spyMission: SpyGameMission;
   onUpdateSpyMission: (m: SpyGameMission) => void;
   onSaveSpyMission?: (m: SpyGameMission) => Promise<void>;
@@ -53,6 +56,9 @@ const SPY_MISSION_PRESETS = [
 export const SpyGameView: React.FC<SpyGameViewProps> = ({
   currentUser,
   students,
+  selectedClassId,
+  onSelectedClassIdChange,
+  spyMissionLoading,
   spyMission,
   onUpdateSpyMission,
   onSaveSpyMission,
@@ -169,6 +175,7 @@ export const SpyGameView: React.FC<SpyGameViewProps> = ({
   };
 
   const handleCastVote = async (suspect: User) => {
+    if (spyMissionLoading) return;
     if (userVotesRemaining <= 0) {
       soundFx.playError();
       alert('Bạn đã dùng hết 3/3 lượt bình chọn gián điệp tuần này!');
@@ -191,6 +198,7 @@ export const SpyGameView: React.FC<SpyGameViewProps> = ({
   };
 
   const handleResetMyVotes = async () => {
+    if (spyMissionLoading) return;
     if (userSpyVotes.length === 0) return;
     if (confirm('Bạn có chắc chắn muốn thu hồi toàn bộ các phiếu đã vote của mình để chọn lại không?')) {
       soundFx.playClick();
@@ -217,8 +225,18 @@ export const SpyGameView: React.FC<SpyGameViewProps> = ({
   };
 
   const handleStartNewRound = async () => {
+    if (spyMissionLoading) return;
+    if (!selectedClassId) {
+      setSaveError('Chưa xác định lớp cho trò chơi Gián điệp.');
+      return;
+    }
     if (!tempSpyId) {
       alert('Vui lòng chỉ định một học sinh làm Gián điệp!');
+      return;
+    }
+    const spyStudent = students.find(student => student.id === tempSpyId);
+    if (!spyStudent?.classId || spyStudent.classId !== selectedClassId) {
+      setSaveError('Học sinh được chọn không thuộc lớp đang thao tác.');
       return;
     }
     if (!tempMissionDesc.trim()) {
@@ -229,10 +247,10 @@ export const SpyGameView: React.FC<SpyGameViewProps> = ({
     soundFx.playSuccess();
     const updatedMission: SpyGameMission = {
       id: `sp_${Date.now()}`,
-      classId: currentUser.classId || spyMission.classId,
+      classId: selectedClassId,
       weekNumber: tempWeek,
       category: tempCategory,
-      spyStudentId: tempSpyId,
+      spyStudentId: spyStudent.id,
       missionDescription: tempMissionDesc.trim(),
       status: 'Đang diễn ra',
       votes: [],
@@ -254,9 +272,30 @@ export const SpyGameView: React.FC<SpyGameViewProps> = ({
   };
 
   const handleConfirmEndGameAndTally = async () => {
+    if (spyMissionLoading) return;
     soundFx.playBonus();
 
+    const missionClassId = spyMission.classId;
+    if (!missionClassId || !selectedClassId || missionClassId !== selectedClassId) {
+      setSaveError('Nhiệm vụ không thuộc lớp đang thao tác.');
+      return;
+    }
+
     const spyUser = students.find(s => s.id === spyMission.spyStudentId);
+    if (!spyUser?.classId || spyUser.classId !== missionClassId) {
+      setSaveError('Học sinh gián điệp không thuộc lớp của nhiệm vụ.');
+      return;
+    }
+
+    const hasInvalidSuspect = (spyMission.votes || []).some(vote => {
+      const suspect = students.find(student => student.id === vote.suspectId);
+      return !suspect?.classId || suspect.classId !== missionClassId;
+    });
+    if (hasInvalidSuspect) {
+      setSaveError('Phiếu bầu chứa học sinh không thuộc lớp của nhiệm vụ.');
+      return;
+    }
+
     const rewardSpyVal = spyMission.rewardSpy || 5;
     const penaltySpyVal = spyMission.penaltySpy || 5;
     const rewardCitizenVal = spyMission.rewardCitizenPerVote || 2;
@@ -329,6 +368,17 @@ export const SpyGameView: React.FC<SpyGameViewProps> = ({
     const points = [makePoint(spyUser.id, spyUser.fullName, spyPointsChange, 'Gián điệp')];
     if (endOutcome === 'citizens') correctVoters.filter(voter => voter.pointsEarned > 0).forEach(voter =>
       points.push(makePoint(voter.studentId, voter.studentName, voter.pointsEarned, `${voter.votesCast} phiếu đúng`)));
+    const hasInvalidPoint = points.some(point => {
+      const targetStudent = students.find(student => student.id === point.userId);
+      return point.classId !== missionClassId ||
+        point.activityId !== spyMission.id ||
+        !targetStudent?.classId ||
+        targetStudent.classId !== missionClassId;
+    });
+    if (hasInvalidPoint) {
+      setSaveError('Danh sách điểm tổng kết chứa học sinh không thuộc lớp của nhiệm vụ.');
+      return;
+    }
     setSaving(true);
     try {
       await onFinishMission(updatedMission, points);
@@ -342,6 +392,7 @@ export const SpyGameView: React.FC<SpyGameViewProps> = ({
   };
 
   const handleReopenRound = async () => {
+    if (spyMissionLoading) return;
     if (confirm('Bạn có muốn mở lại vòng bình chọn này để tiếp tục không?')) {
       soundFx.playClick();
       const updatedMission: SpyGameMission = {
@@ -365,8 +416,14 @@ export const SpyGameView: React.FC<SpyGameViewProps> = ({
         students={students}
         spyMission={spyMission}
         onUpdateSpyMission={onUpdateSpyMission}
-        onCastVote={onCastVote}
-        onResetMyVotes={onResetMyVotes}
+        onCastVote={async suspectId => {
+          if (spyMissionLoading) return;
+          await onCastVote?.(suspectId);
+        }}
+        onResetMyVotes={async () => {
+          if (spyMissionLoading) return;
+          await onResetMyVotes?.();
+        }}
         isTeacherOrAdmin={isTeacherOrAdmin}
         onOpenActivate={() => {
           setTempWeek(spyMission.weekNumber || 4);
@@ -784,6 +841,7 @@ export const SpyGameView: React.FC<SpyGameViewProps> = ({
                 <button
                   type="button"
                   onClick={async () => {
+                    if (spyMissionLoading) return;
                     if (confirm('Bạn có chắc muốn đặt lại toàn bộ phiếu bầu của lớp không?')) {
                       if (!onClearAllVotes) return;
                       setSaving(true);
@@ -810,12 +868,23 @@ export const SpyGameView: React.FC<SpyGameViewProps> = ({
                   <button
                     type="button"
                     onClick={async () => {
+                      if (spyMissionLoading) return;
                       soundFx.playSuccess();
+                      if (!selectedClassId || spyMission.classId !== selectedClassId) {
+                        setSaveError('Nhiệm vụ hiện tại không thuộc lớp đang thao tác.');
+                        return;
+                      }
+                      const spyStudent = students.find(student => student.id === tempSpyId);
+                      if (!spyStudent?.classId || spyStudent.classId !== selectedClassId) {
+                        setSaveError('Học sinh được chọn không thuộc lớp đang thao tác.');
+                        return;
+                      }
                       const updated = {
                         ...spyMission,
+                        classId: selectedClassId,
                         weekNumber: tempWeek,
                         category: tempCategory,
-                        spyStudentId: tempSpyId,
+                        spyStudentId: spyStudent.id,
                         missionDescription: tempMissionDesc,
                         rewardSpy: tempRewardSpy,
                         penaltySpy: tempPenaltySpy,
