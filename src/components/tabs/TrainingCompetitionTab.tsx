@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { StudentSelectControl } from '../StudentSelectControl';
 import {
   User,
@@ -57,6 +57,9 @@ interface TrainingCompetitionTabProps {
   disciplineRecords: DisciplineRecord[];
   complaints: Complaint[];
   students: User[];
+  selectedClassId: string;
+  onSelectedClassIdChange: (classId: string) => void;
+  classOptions: Array<{ id: string; name: string }>;
   pointUsageTransactions?: PointUsageTransaction[];
   onAddPointUsageTransaction?: (tx: PointUsageTransaction) => void;
   onCancelPointUsageTransaction?: (txId: string, cancelledBy: string) => void;
@@ -69,10 +72,13 @@ interface TrainingCompetitionTabProps {
 
 export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
   currentUser,
-  disciplineRecords,
+  disciplineRecords: allDisciplineRecords,
   complaints,
-  students,
-  pointUsageTransactions = [],
+  students: allStudents,
+  selectedClassId,
+  onSelectedClassIdChange,
+  classOptions,
+  pointUsageTransactions: allPointUsageTransactions,
   onAddPointUsageTransaction,
   onCancelPointUsageTransaction,
   onAddDisciplineRecord,
@@ -81,6 +87,41 @@ export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
   onAddComplaint,
   onResolveComplaint
 }) => {
+  const classStudents = useMemo(
+    () => selectedClassId
+      ? allStudents.filter(student => student.classId === selectedClassId)
+      : [],
+    [allStudents, selectedClassId]
+  );
+
+  const classStudentIds = useMemo(
+    () => new Set(classStudents.map(student => student.id)),
+    [classStudents]
+  );
+
+  const classDisciplineRecords = useMemo(
+    () => allDisciplineRecords.filter(record =>
+      record.classId
+        ? record.classId === selectedClassId
+        : classStudentIds.has(record.studentId)
+    ),
+    [allDisciplineRecords, classStudentIds, selectedClassId]
+  );
+
+  const classPointUsageTransactions = useMemo(
+    () => (allPointUsageTransactions || []).filter(transaction =>
+      transaction.classId
+        ? transaction.classId === selectedClassId
+        : classStudentIds.has(transaction.studentId)
+    ),
+    [allPointUsageTransactions, classStudentIds, selectedClassId]
+  );
+
+  const selectedClassName = classOptions.find(option => option.id === selectedClassId)?.name || 'Chưa gán lớp';
+  const students = classStudents;
+  const disciplineRecords = classDisciplineRecords;
+  const pointUsageTransactions = classPointUsageTransactions;
+
   // Main Sub-tabs: 'records' (Ghi nhận & Nhật ký) | 'team_weekly_table' (Thống kê theo tuần & theo tổ dạng bảng)
   const [subTab, setSubTab] = useState<'records' | 'team_weekly_table'>('team_weekly_table');
 
@@ -261,6 +302,21 @@ export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
   const [editWeek, setEditWeek] = useState<number>(1);
   const [editSemester, setEditSemester] = useState<'Học kỳ 1' | 'Học kỳ 2'>('Học kỳ 1');
   const [editReason, setEditReason] = useState<string>('');
+
+  useEffect(() => {
+    const firstStudentId = students[0]?.id || '';
+    const hasStudent = (targetStudentId: string) => students.some(student => student.id === targetStudentId);
+    const classTeams = new Set(
+      students
+        .map(student => normalizeStudentTeam(student.team))
+        .filter((team): team is string => Boolean(team))
+    );
+
+    setStudentId(previous => hasStudent(previous) ? previous : firstStudentId);
+    setUsePointsStudentId(previous => hasStudent(previous) ? previous : firstStudentId);
+    setEditStudentId(previous => hasStudent(previous) ? previous : '');
+    setSelectedTeamFilter(previous => previous === 'all' || classTeams.has(previous) ? previous : 'all');
+  }, [selectedClassId, students]);
 
   const startEditDisciplineRecord = (rec: DisciplineRecord) => {
     setEditingDisciplineRecord(rec);
@@ -776,7 +832,7 @@ export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
 
         <div className="text-xs font-bold text-slate-500 flex items-center gap-1.5 px-3 py-1 bg-emerald-50 rounded-xl border border-emerald-200">
           <Award className="w-3.5 h-3.5 text-emerald-600" />
-          <span>{currentUser.className || 'Chưa gán lớp'} • {currentUser.school || 'Chưa có thông tin trường'}</span>
+          <span>{selectedClassName} • {currentUser.school || 'Chưa có thông tin trường'}</span>
         </div>
       </div>
 
@@ -792,7 +848,24 @@ export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+              {/* Class filter */}
+              {isTeacherOrAdmin && (
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">🏫 Lớp:</label>
+                  <select
+                    value={selectedClassId}
+                    onChange={(e) => onSelectedClassIdChange(e.target.value)}
+                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800"
+                  >
+                    {classOptions.length === 0 && <option value="">Chưa có lớp</option>}
+                    {classOptions.map(option => (
+                      <option key={option.id} value={option.id}>{option.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {/* Semester filter */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 mb-1">🎓 Học kỳ:</label>

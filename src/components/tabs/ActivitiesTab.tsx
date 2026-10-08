@@ -65,6 +65,7 @@ import {
 interface ActivitiesTabProps {
   currentUser: User;
   students: User[];
+  classOptions: Array<{ id: string; name: string }>;
   selectedSpyClassId: string;
   onSelectedSpyClassIdChange: (classId: string) => void;
   spyClassStudents: User[];
@@ -105,6 +106,7 @@ interface ActivitiesTabProps {
 export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
   currentUser,
   students,
+  classOptions,
   selectedSpyClassId,
   onSelectedSpyClassIdChange,
   spyClassStudents,
@@ -881,6 +883,7 @@ export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
         <AchievementGardenView
           currentUser={currentUser}
           students={students}
+          classOptions={classOptions}
           disciplineRecords={disciplineRecords}
           learningRecords={learningRecords}
           onAddLearningRecord={onAddLearningRecord}

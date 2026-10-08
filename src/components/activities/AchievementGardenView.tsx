@@ -92,6 +92,7 @@ const DEFAULT_REWARD_CONFIG: RewardConfig = {
 interface AchievementGardenViewProps {
   currentUser: User;
   students: User[];
+  classOptions: Array<{ id: string; name: string }>;
   disciplineRecords: DisciplineRecord[];
   learningRecords: LearningRecord[];
   onAddLearningRecord: (rec: LearningRecord) => void;
@@ -107,6 +108,7 @@ interface AchievementGardenViewProps {
 export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
   currentUser,
   students,
+  classOptions,
   disciplineRecords,
   learningRecords,
   onAddLearningRecord,
@@ -122,16 +124,9 @@ export const AchievementGardenView: React.FC<AchievementGardenViewProps> = ({
   const isTeacherOrAdmin = currentUser.role === 'teacher' || currentUser.role === 'admin';
 
 
-const scopedStudents =
-  currentUser.role === 'admin'
-    ? students
-    : currentUser.role === 'teacher'
-      ? students
-      : students.filter(st => st.id === currentUser.id);
-
   const availableClassIds = useMemo(
-    () => [...new Set(students.map(student => student.classId).filter((classId): classId is string => Boolean(classId)))],
-    [students]
+    () => classOptions.map(option => option.id),
+    [classOptions]
   );
 
   // Category tabs: all / learning / discipline
@@ -152,12 +147,35 @@ const scopedStudents =
     return students[0]?.classId || availableClassIds[0] || '';
   });
   const classScopedStudents = useMemo(() => {
-    if (currentUser.role === 'student') return scopedStudents;
+    if (currentUser.role === 'student') {
+      return students.filter(student =>
+        student.id === currentUser.id && student.classId === selectedClassId
+      );
+    }
     if (currentUser.role === 'teacher' || currentUser.role === 'admin') {
       return students.filter(student => student.classId === selectedClassId);
     }
     return [];
-  }, [currentUser.role, scopedStudents, selectedClassId, students]);
+  }, [currentUser.id, currentUser.role, selectedClassId, students]);
+
+  const classStudentIds = useMemo(
+    () => new Set(classScopedStudents.map(student => student.id)),
+    [classScopedStudents]
+  );
+
+  const classTeamOptions = useMemo(
+    () => [...new Set(classScopedStudents
+      .map(student => student.team?.trim())
+      .filter((team): team is string => Boolean(team)))],
+    [classScopedStudents]
+  );
+
+  const handleSelectedClassChange = (newClassId: string) => {
+    const firstStudentInClass = students.find(student => student.classId === newClassId);
+    setSelectedClassId(newClassId);
+    setSelectedStudentForBonus(firstStudentInClass?.id || '');
+    soundFx.playClick();
+  };
 
   useEffect(() => {
     if (currentUser.role === 'student') {
@@ -430,18 +448,26 @@ const scopedStudents =
 
  useEffect(() => {
   if (currentUser.role === 'student') {
-    setSelectedStudentForBonus(currentUser.id);
+    setSelectedStudentForBonus(
+      classScopedStudents.some(student => student.id === currentUser.id) ? currentUser.id : ''
+    );
   } else if (
-    !scopedStudents.some(student => student.id === selectedStudentForBonus)
+    !classScopedStudents.some(student => student.id === selectedStudentForBonus)
   ) {
-    setSelectedStudentForBonus(scopedStudents[0]?.id || '');
+    setSelectedStudentForBonus(classScopedStudents[0]?.id || '');
   }
 }, [
+  classScopedStudents,
   currentUser.id,
   currentUser.role,
-  scopedStudents,
   selectedStudentForBonus
 ]);
+
+  useEffect(() => {
+    setTeamFilter(previous =>
+      previous === 'all' || classTeamOptions.includes(previous) ? previous : 'all'
+    );
+  }, [classTeamOptions]);
 
   useEffect(() => {
     if (!isTeacherOrAdmin || !selectedClassId || loadedConfigClassId !== selectedClassId) return;
@@ -594,17 +620,27 @@ const scopedStudents =
   };
 
   const filteredLearningRecords = useMemo(() => {
-    return learningRecords.filter(r => isRecordInTimeframe(r.date, r.semester, r.week));
-  }, [learningRecords, timeframe, selectedSpinWeek]);
+    return learningRecords.filter(record => {
+      const belongsToSelectedClass = record.classId
+        ? record.classId === selectedClassId
+        : classStudentIds.has(record.studentId);
+      return belongsToSelectedClass && isRecordInTimeframe(record.date, record.semester, record.week);
+    });
+  }, [classStudentIds, learningRecords, selectedClassId, timeframe, selectedSpinWeek]);
 
   const filteredDisciplineRecords = useMemo(() => {
-    return disciplineRecords.filter(r => isRecordInTimeframe(r.date, r.semester, r.week));
-  }, [disciplineRecords, timeframe, selectedSpinWeek]);
+    return disciplineRecords.filter(record => {
+      const belongsToSelectedClass = record.classId
+        ? record.classId === selectedClassId
+        : classStudentIds.has(record.studentId);
+      return belongsToSelectedClass && isRecordInTimeframe(record.date, record.semester, record.week);
+    });
+  }, [classStudentIds, disciplineRecords, selectedClassId, timeframe, selectedSpinWeek]);
 
   // 1. Calculate Learning Scores per student (Filtered by Timeframe)
   const studentLearningMap = useMemo(() => {
     const map: { [studentId: string]: { totalPoints: number; count: number; recentRecords: LearningRecord[] } } = {};
-    scopedStudents.forEach(st => {
+    classScopedStudents.forEach(st => {
       map[st.id] = { totalPoints: 0, count: 0, recentRecords: [] };
     });
 
@@ -617,7 +653,7 @@ const scopedStudents =
     });
 
     return map;
-  }, [scopedStudents, filteredLearningRecords]);
+  }, [classScopedStudents, filteredLearningRecords]);
 
   // 2. Calculate Discipline Scores per student (Filtered by Timeframe)
   const studentDisciplineMap = useMemo(() => {
@@ -631,7 +667,7 @@ const scopedStudents =
       };
     } = {};
 
-    scopedStudents.forEach(st => {
+    classScopedStudents.forEach(st => {
       map[st.id] = { rewardPoints: 0, violationPoints: 0, netPoints: 0, count: 0, recentRecords: [] };
     });
 
@@ -649,7 +685,7 @@ const scopedStudents =
     });
 
     return map;
-  }, [scopedStudents, filteredDisciplineRecords]);
+  }, [classScopedStudents, filteredDisciplineRecords]);
 
   // Activity Category Mapping to satisfy Rule #11 (Dynamic reclassification when teacher changes activity category)
   const activityCategoryMap = useMemo(() => {
@@ -706,7 +742,7 @@ const scopedStudents =
       }
     > = {};
 
-    scopedStudents.forEach((st) => {
+    classScopedStudents.forEach((st) => {
       statsMap[st.id] = {
         student: st,
         academicActivityPoints: 0,
@@ -817,7 +853,7 @@ const scopedStudents =
     });
 
     return statsMap;
-  }, [scopedStudents, filteredLearningRecords, filteredDisciplineRecords, activityCategoryMap]);
+  }, [classScopedStudents, filteredLearningRecords, filteredDisciplineRecords, activityCategoryMap]);
 
   // Active student garden stats
   const currentViewStudentId = isTeacherOrAdmin ? (selectedStudentForBonus || currentUser.id) : currentUser.id;
@@ -837,7 +873,7 @@ const scopedStudents =
 
   // 3. Combined Student List with Full Stats
   const combinedStudentStats = useMemo(() => {
-  return scopedStudents.map(st => {
+  return classScopedStudents.map(st => {
       const gData = unifiedStudentGardenStats[st.id] || {
         academicActivityPoints: 0,
         trainingActivityPoints: 0,
@@ -868,7 +904,7 @@ const scopedStudents =
         totalActivityPoints: gData.totalActivityPoints
       };
     });
-  }, [scopedStudents, studentLearningMap, studentDisciplineMap, unifiedStudentGardenStats]);
+  }, [classScopedStudents, studentLearningMap, studentDisciplineMap, unifiedStudentGardenStats]);
 
   // Leaderboards
   const overallLeaderboard = useMemo(() => {
@@ -895,7 +931,7 @@ const scopedStudents =
       };
     } = {};
 
-    scopedStudents.forEach((st) => {
+    classScopedStudents.forEach((st) => {
       map[st.id] = {
         totalSpinPoints: 0,
         learningSpinPoints: 0,
@@ -921,7 +957,7 @@ const scopedStudents =
     });
 
     return map;
- }, [scopedStudents, spinHistory, timeframe, selectedSpinWeek]);
+ }, [classScopedStudents, spinHistory, timeframe, selectedSpinWeek]);
 
   // Current logged in student's personal spin stats
   const currentUserSpinStats = useMemo(() => {
@@ -1231,7 +1267,7 @@ const scopedStudents =
       item.student.fullName.toLowerCase().includes(q) ||
       item.student.username.toLowerCase().includes(q) ||
       (item.student.team && item.student.team.toLowerCase().includes(q));
-    const matchTeam = teamFilter === 'all' || item.student.team === teamFilter;
+    const matchTeam = teamFilter === 'all' || item.student.team?.trim() === teamFilter;
     return matchQuery && matchTeam;
   });
 
@@ -1261,6 +1297,21 @@ const scopedStudents =
         <div className="flex items-center gap-3 flex-wrap">
           {isTeacherOrAdmin && (
             <>
+              {/* Class Selector */}
+              <div className="flex items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-2xl border border-amber-300 text-xs font-bold text-amber-950 shadow-2xs">
+                <span>🏫 Lớp:</span>
+                <select
+                  value={selectedClassId}
+                  onChange={(e) => handleSelectedClassChange(e.target.value)}
+                  className="bg-white border border-amber-300 rounded-xl px-2 py-1 font-black text-xs text-amber-950 focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-2xs"
+                >
+                  {classOptions.length === 0 && <option value="">Chưa có lớp</option>}
+                  {classOptions.map(option => (
+                    <option key={option.id} value={option.id}>{option.name}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Applied Week Selector Badge for Teacher / Admin */}
               <div className="flex items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-2xl border border-amber-300 text-xs font-bold text-amber-950 shadow-2xs">
                 <Calendar className="w-3.5 h-3.5 text-amber-700" />
@@ -1367,7 +1418,7 @@ const scopedStudents =
                 }}
                 className="bg-slate-900 border border-emerald-500/40 rounded-xl px-2.5 py-1 text-xs font-black text-emerald-300 focus:ring-2 focus:ring-emerald-400 cursor-pointer"
               >
-                {scopedStudents.map((st) => (
+                {classScopedStudents.map((st) => (
                   <option key={st.id} value={st.id}>
                     {st.fullName} ({st.team || 'Cá nhân'})
                   </option>
@@ -1954,7 +2005,7 @@ const scopedStudents =
               </div>
 
               <div className="flex items-center gap-1.5 overflow-x-auto">
-                {['all', 'Tổ 1', 'Tổ 2', 'Tổ 3', 'Tổ 4'].map((tKey) => (
+                {['all', ...classTeamOptions].map((tKey) => (
                   <button
                     key={tKey}
                     type="button"
@@ -1965,7 +2016,7 @@ const scopedStudents =
                         : 'bg-white text-slate-700 border border-slate-200 hover:bg-amber-50'
                     }`}
                   >
-                    {tKey === 'all' ? `Tất cả (${students.length})` : tKey}
+                    {tKey === 'all' ? `Tất cả (${classScopedStudents.length})` : tKey}
                   </button>
                 ))}
               </div>
@@ -2224,7 +2275,7 @@ const scopedStudents =
                     onChange={(e) => setSelectedStudentForBonus(e.target.value)}
                     className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-xs"
                   >
-			{scopedStudents.map((st) => (
+			{classScopedStudents.map((st) => (
                       <option key={st.id} value={st.id}>
                         {st.fullName} ({st.team || 'Chưa xếp tổ'})
                       </option>
@@ -2705,7 +2756,7 @@ const scopedStudents =
                 }`}
               >
                 <BarChart2 className="w-3.5 h-3.5" />
-                <span>Thống kê học sinh ({students.length})</span>
+                <span>Thống kê học sinh ({classScopedStudents.length})</span>
               </button>
 
               <button
@@ -3092,7 +3143,7 @@ const scopedStudents =
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {scopedStudents.map((st, index) => {
+                      {classScopedStudents.map((st, index) => {
                         const spinInfo = getStudentSpinInfo(st.id);
                         return (
                           <tr key={st.id} className="hover:bg-slate-50 transition-colors">

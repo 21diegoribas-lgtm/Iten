@@ -257,6 +257,13 @@ useEffect(() => {
     return [];
   }, [classesList, currentUser]);
 
+  const managedClassOptions = useMemo(
+    () => classesList
+      .filter(classItem => managedClassIds.includes(classItem.id))
+      .map(classItem => ({ id: classItem.id, name: classItem.name })),
+    [classesList, managedClassIds]
+  );
+
   const managedStudents = useMemo(() => {
     if (!currentUser) return [];
     if (currentUser.role === 'admin') return students;
@@ -276,6 +283,54 @@ useEffect(() => {
 
     return [];
   }, [currentUser, managedClassIds, students]);
+
+  const [selectedLearningClassId, setSelectedLearningClassId] = useState('');
+  useEffect(() => {
+    if (!currentUser) {
+      setSelectedLearningClassId('');
+      return;
+    }
+
+    if (currentUser.role === 'student') {
+      setSelectedLearningClassId(currentUser.classId || '');
+      return;
+    }
+
+    if (currentUser.role === 'teacher' || currentUser.role === 'admin') {
+      setSelectedLearningClassId(previous =>
+        previous && managedClassIds.includes(previous)
+          ? previous
+          : managedClassIds[0] || ''
+      );
+      return;
+    }
+
+    setSelectedLearningClassId('');
+  }, [currentUser?.classId, currentUser?.id, currentUser?.role, managedClassIds]);
+
+  const [selectedTrainingClassId, setSelectedTrainingClassId] = useState('');
+  useEffect(() => {
+    if (!currentUser) {
+      setSelectedTrainingClassId('');
+      return;
+    }
+
+    if (currentUser.role === 'student') {
+      setSelectedTrainingClassId(currentUser.classId || '');
+      return;
+    }
+
+    if (currentUser.role === 'teacher' || currentUser.role === 'admin') {
+      setSelectedTrainingClassId(previous =>
+        previous && managedClassIds.includes(previous)
+          ? previous
+          : managedClassIds[0] || ''
+      );
+      return;
+    }
+
+    setSelectedTrainingClassId('');
+  }, [currentUser?.classId, currentUser?.id, currentUser?.role, managedClassIds]);
 
   const [selectedSpyClassId, setSelectedSpyClassId] = useState('');
   useEffect(() => {
@@ -1214,6 +1269,9 @@ onAddTeachersBulk={newTeachers => {
                 disciplineRecords={disciplineRecords}
                 complaints={complaints}
                 students={managedStudents}
+                selectedClassId={selectedTrainingClassId}
+                onSelectedClassIdChange={setSelectedTrainingClassId}
+                classOptions={managedClassOptions}
                 pointUsageTransactions={pointUsageTransactions}
                 onAddPointUsageTransaction={handleAddPointUsageTransaction}
                 onCancelPointUsageTransaction={handleCancelPointUsageTransaction}
@@ -1284,7 +1342,10 @@ onResolveComplaint={(id, response) => {
               <LearningCompetitionTab
                 currentUser={currentUser}
                 learningRecords={learningRecords}
-                students={students}
+                students={managedStudents}
+                selectedClassId={selectedLearningClassId}
+                onSelectedClassIdChange={setSelectedLearningClassId}
+                classOptions={managedClassOptions}
                 pointUsageTransactions={pointUsageTransactions}
                 onAddPointUsageTransaction={handleAddPointUsageTransaction}
                 onCancelPointUsageTransaction={handleCancelPointUsageTransaction}
@@ -1327,6 +1388,7 @@ onDeleteLearningRecord={id => {
                 flowerLoadState={flowerLoadState}
                 currentUser={currentUser}
                 students={managedStudents}
+                classOptions={managedClassOptions}
                 selectedSpyClassId={selectedSpyClassId}
                 onSelectedSpyClassIdChange={setSelectedSpyClassId}
                 spyClassStudents={spyClassStudents}
