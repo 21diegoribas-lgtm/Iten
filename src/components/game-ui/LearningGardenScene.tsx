@@ -35,6 +35,9 @@ import {
 interface LearningGardenSceneProps {
   currentUser: User;
   flowerConfig: FlowerGameConfig;
+  selectedClassId: string;
+  onSelectedClassIdChange: (classId: string) => void;
+  classOptions: Array<{ id: string; name: string }>;
   onUpdateFlowerConfig?: (config: FlowerGameConfig) => Promise<void>;
   onActivityPointSaved?: (point: ActivityPointRecord) => void;
   isTeacherOrAdmin?: boolean;
@@ -72,6 +75,9 @@ const DEFAULT_COLORS = [
 export const LearningGardenScene: React.FC<LearningGardenSceneProps> = ({
   currentUser,
   flowerConfig,
+  selectedClassId,
+  onSelectedClassIdChange,
+  classOptions,
   onUpdateFlowerConfig,
   onActivityPointSaved,
   isTeacherOrAdmin = false
@@ -810,6 +816,30 @@ export const LearningGardenScene: React.FC<LearningGardenSceneProps> = ({
       {historyLoading && <p role="status" className="mb-3 rounded-xl bg-sky-50 p-3 text-sm text-sky-800">Đang tải lịch sử Hái hoa...</p>}
       {historyError && <div role="alert" className="fixed top-4 right-4 z-[200] max-w-md rounded-xl border border-rose-300 bg-rose-50 p-4 text-sm text-rose-800 shadow-lg">{historyError}<button className="ml-3 underline" onClick={() => setHistoryError('')}>Đóng</button></div>}
       {savingAnswer && <div role="status" className="fixed inset-0 z-[190] flex items-center justify-center bg-slate-900/30"><p className="rounded-xl bg-white p-5 font-bold text-slate-800">Đang lưu câu trả lời...</p></div>}
+      {isTeacherOrAdmin && (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-2xl border border-pink-200 bg-white p-3 shadow-sm">
+          <label htmlFor="flower-class-selector" className="text-xs font-black uppercase tracking-wide text-slate-600">
+            Lớp
+          </label>
+          <select
+            id="flower-class-selector"
+            value={selectedClassId}
+            onChange={event => onSelectedClassIdChange(event.target.value)}
+            disabled={classOptions.length === 0}
+            className="min-h-10 min-w-44 flex-1 rounded-xl border border-pink-200 bg-pink-50 px-3 py-2 text-sm font-bold text-slate-800 outline-none transition focus:border-pink-500 focus:ring-2 focus:ring-pink-100 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
+          >
+            {classOptions.length === 0 ? (
+              <option value="">Chưa có lớp</option>
+            ) : (
+              classOptions.map(classOption => (
+                <option key={classOption.id} value={classOption.id}>
+                  {classOption.name}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+      )}
       {/* 2D/2.5D CARTOON GAME CANVAS */}
       <div className="relative w-full rounded-3xl overflow-hidden shadow-[0_20px_50px_rgba(14,165,233,0.28)] border-4 border-[#38BDF8] bg-gradient-to-b from-[#60A5FA] via-[#93C5FD] to-[#BAE6FD] min-h-[620px] sm:min-h-[680px] md:min-h-[740px] flex flex-col justify-between">
         

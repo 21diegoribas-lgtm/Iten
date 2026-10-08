@@ -66,6 +66,16 @@ interface ActivitiesTabProps {
   currentUser: User;
   students: User[];
   classOptions: Array<{ id: string; name: string }>;
+  selectedFlowerClassId: string;
+  onSelectedFlowerClassIdChange: (classId: string) => void;
+  selectedRacingClassId: string;
+  onSelectedRacingClassIdChange: (classId: string) => void;
+  racingConfigLoading: boolean;
+  racingConfigReady: boolean;
+  selectedMemoryClassId: string;
+  onSelectedMemoryClassIdChange: (classId: string) => void;
+  memoryConfigLoading: boolean;
+  memoryConfigReady: boolean;
   selectedSpyClassId: string;
   onSelectedSpyClassIdChange: (classId: string) => void;
   spyClassStudents: User[];
@@ -107,6 +117,16 @@ export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
   currentUser,
   students,
   classOptions,
+  selectedFlowerClassId,
+  onSelectedFlowerClassIdChange,
+  selectedRacingClassId,
+  onSelectedRacingClassIdChange,
+  racingConfigLoading,
+  racingConfigReady,
+  selectedMemoryClassId,
+  onSelectedMemoryClassIdChange,
+  memoryConfigLoading,
+  memoryConfigReady,
   selectedSpyClassId,
   onSelectedSpyClassIdChange,
   spyClassStudents,
@@ -501,7 +521,8 @@ export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
   };
 
   const handleSpinRandomVehicle = () => {
-    if (isSpinningVehicle || !racingConfig.vehicles || racingConfig.vehicles.length === 0) return;
+    const racingClassId = racingConfig.classId;
+    if (!racingClassId || isSpinningVehicle || !racingConfig.vehicles || racingConfig.vehicles.length === 0) return;
     setIsSpinningVehicle(true);
     soundFx.playCoin();
 
@@ -546,7 +567,7 @@ export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
             id: 'lr_' + Date.now(),
             studentId: currentUser.id,
             studentName: currentUser.fullName,
-            classId: currentUser.classId || 'c1',
+            classId: racingClassId,
             activityName: actName,
             activityId: actId,
             pointType: 'academic_activity',
@@ -562,7 +583,7 @@ export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
             id: 'dr_' + Date.now(),
             studentId: currentUser.id,
             studentName: currentUser.fullName,
-            classId: currentUser.classId || 'c1',
+            classId: racingClassId,
             type: 'reward',
             categoryName: actName,
             activityId: actId,
@@ -812,6 +833,9 @@ export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
           key={`${currentUser.id}:${flowerConfig.classId}`}
           currentUser={currentUser}
           flowerConfig={flowerConfig}
+          selectedClassId={selectedFlowerClassId}
+          onSelectedClassIdChange={onSelectedFlowerClassIdChange}
+          classOptions={classOptions}
           onUpdateFlowerConfig={onUpdateFlowerConfig}
           onActivityPointSaved={onActivityPointSaved}
           isTeacherOrAdmin={isTeacherOrAdmin}
@@ -820,23 +844,43 @@ export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
 
       {/* 4.4 – ĐƯỜNG ĐUA HỌC TẬP (2D/2.5D ANIMATED CARTOON GAME WORLD) */}
       {activeActivity === 'racing' && (
-        <LearningRaceScene
-          currentUser={currentUser}
-          racingConfig={racingConfig}
-          onUpdateRacingConfig={onUpdateRacingConfig}
-          onActivityPointSaved={onActivityPointSaved}
-          isTeacherOrAdmin={isTeacherOrAdmin}
-        />
+        !selectedRacingClassId ? (
+          <p role="status" className="rounded-xl bg-sky-50 p-4 text-sky-900">Chưa xác định lớp học.</p>
+        ) : racingConfigLoading || !racingConfigReady ? (
+          <p role="status" className="rounded-xl bg-sky-50 p-4 text-sky-900">Đang tải Đường đua...</p>
+        ) : (
+          <LearningRaceScene
+            key={`${currentUser.id}:${selectedRacingClassId}`}
+            currentUser={currentUser}
+            racingConfig={racingConfig}
+            selectedClassId={selectedRacingClassId}
+            onSelectedClassIdChange={onSelectedRacingClassIdChange}
+            classOptions={classOptions}
+            onUpdateRacingConfig={onUpdateRacingConfig}
+            onActivityPointSaved={onActivityPointSaved}
+            isTeacherOrAdmin={isTeacherOrAdmin}
+          />
+        )
       )}
 
       {/* 4.6 – THÁCH THỨC THẺ NHỚ */}
       {activeActivity === 'memory' && (
-        <MemoryGameView
-          currentUser={currentUser}
-          memoryConfig={memoryConfig}
-          onUpdateMemoryConfig={onUpdateMemoryConfig}
-          onActivityPointSaved={onActivityPointSaved}
-        />
+        !selectedMemoryClassId ? (
+          <p role="status" className="rounded-xl bg-sky-50 p-4 text-sky-900">Chưa xác định lớp học.</p>
+        ) : memoryConfigLoading || !memoryConfigReady ? (
+          <p role="status" className="rounded-xl bg-sky-50 p-4 text-sky-900">Đang tải Memory...</p>
+        ) : (
+          <MemoryGameView
+            key={`${currentUser.id}:${selectedMemoryClassId}`}
+            currentUser={currentUser}
+            memoryConfig={memoryConfig}
+            selectedClassId={selectedMemoryClassId}
+            onSelectedClassIdChange={onSelectedMemoryClassIdChange}
+            classOptions={classOptions}
+            onUpdateMemoryConfig={onUpdateMemoryConfig}
+            onActivityPointSaved={onActivityPointSaved}
+          />
+        )
       )}
 
       {/* 4.2 – TRUY TÌM GIÁN ĐIỆP */}
@@ -850,6 +894,7 @@ export const ActivitiesTab: React.FC<ActivitiesTabProps> = ({
           key={selectedSpyClassId}
           currentUser={currentUser}
           students={spyClassStudents}
+          classOptions={classOptions}
           selectedClassId={selectedSpyClassId}
           onSelectedClassIdChange={onSelectedSpyClassIdChange}
           spyMissionLoading={spyMissionLoading}

@@ -332,6 +332,78 @@ useEffect(() => {
     setSelectedTrainingClassId('');
   }, [currentUser?.classId, currentUser?.id, currentUser?.role, managedClassIds]);
 
+  const [selectedFlowerClassId, setSelectedFlowerClassId] = useState('');
+  useEffect(() => {
+    if (!currentUser) {
+      setSelectedFlowerClassId('');
+      return;
+    }
+
+    if (currentUser.role === 'student') {
+      setSelectedFlowerClassId(currentUser.classId || '');
+      return;
+    }
+
+    if (currentUser.role === 'teacher' || currentUser.role === 'admin') {
+      setSelectedFlowerClassId(previous =>
+        previous && managedClassIds.includes(previous)
+          ? previous
+          : managedClassIds[0] || ''
+      );
+      return;
+    }
+
+    setSelectedFlowerClassId('');
+  }, [currentUser?.classId, currentUser?.id, currentUser?.role, managedClassIds]);
+
+  const [selectedRacingClassId, setSelectedRacingClassId] = useState('');
+  useEffect(() => {
+    if (!currentUser) {
+      setSelectedRacingClassId('');
+      return;
+    }
+
+    if (currentUser.role === 'student') {
+      setSelectedRacingClassId(currentUser.classId || '');
+      return;
+    }
+
+    if (currentUser.role === 'teacher' || currentUser.role === 'admin') {
+      setSelectedRacingClassId(previous =>
+        previous && managedClassIds.includes(previous)
+          ? previous
+          : managedClassIds[0] || ''
+      );
+      return;
+    }
+
+    setSelectedRacingClassId('');
+  }, [currentUser?.classId, currentUser?.id, currentUser?.role, managedClassIds]);
+
+  const [selectedMemoryClassId, setSelectedMemoryClassId] = useState('');
+  useEffect(() => {
+    if (!currentUser) {
+      setSelectedMemoryClassId('');
+      return;
+    }
+
+    if (currentUser.role === 'student') {
+      setSelectedMemoryClassId(currentUser.classId || '');
+      return;
+    }
+
+    if (currentUser.role === 'teacher' || currentUser.role === 'admin') {
+      setSelectedMemoryClassId(previous =>
+        previous && managedClassIds.includes(previous)
+          ? previous
+          : managedClassIds[0] || ''
+      );
+      return;
+    }
+
+    setSelectedMemoryClassId('');
+  }, [currentUser?.classId, currentUser?.id, currentUser?.role, managedClassIds]);
+
   const [selectedSpyClassId, setSelectedSpyClassId] = useState('');
   useEffect(() => {
     if (!currentUser) {
@@ -525,8 +597,8 @@ useEffect(() => {
   const [flowerLoadState, setFlowerLoadState] = useState('Đang tải trò chơi...');
 
   useEffect(() => {
-    const classId = currentUser?.classId;
-    setFlowerConfig(createEmptyFlowerGameConfig(classId || ''));
+    const classId = selectedFlowerClassId;
+    setFlowerConfig(createEmptyFlowerGameConfig(classId));
     if (!classId) { setFlowerLoadState('Tài khoản chưa được gán lớp học.'); return; }
     setFlowerLoadState('Đang tải trò chơi...');
 
@@ -543,18 +615,27 @@ useEffect(() => {
     return () => {
       cancelled = true;
     };
-  }, [currentUser?.classId, currentUser?.id]);
+  }, [currentUser?.id, selectedFlowerClassId]);
   const [racingConfig, setRacingConfig] = useState<RacingGameConfig>(() => emptyRacingConfig());
+  const [racingConfigLoading, setRacingConfigLoading] = useState(false);
+  const racingConfigReady = Boolean(selectedRacingClassId) &&
+    !racingConfigLoading &&
+    racingConfig.classId === selectedRacingClassId;
   useEffect(() => {
-    const classId = currentUser?.classId;
-    setRacingConfig(emptyRacingConfig(classId || ''));
-    if (!classId) return;
+    const classId = selectedRacingClassId;
+    setRacingConfig(emptyRacingConfig(classId));
+    if (!classId) {
+      setRacingConfigLoading(false);
+      return;
+    }
     let cancelled = false;
+    setRacingConfigLoading(true);
     getRacingGameConfig(classId)
       .then(config => { if (!cancelled && config) setRacingConfig(config); })
-      .catch(error => console.error('[Load Racing Game Config Error]', error));
+      .catch(error => { if (!cancelled) console.error('[Load Racing Game Config Error]', error); })
+      .finally(() => { if (!cancelled) setRacingConfigLoading(false); });
     return () => { cancelled = true; };
-  }, [currentUser?.classId, currentUser?.id]);
+  }, [currentUser?.id, selectedRacingClassId]);
   const [keyboardTask, setKeyboardTask] = useState<KeyboardHeroTask>(() => emptyKeyboardTask());
   useEffect(() => {
     const classId = currentUser?.classId;
@@ -567,16 +648,25 @@ useEffect(() => {
     return () => { cancelled = true; };
   }, [currentUser?.classId, currentUser?.id]);
   const [memoryConfig, setMemoryConfig] = useState<MemoryCardGameConfig>(() => emptyMemoryConfig());
+  const [memoryConfigLoading, setMemoryConfigLoading] = useState(false);
+  const memoryConfigReady = Boolean(selectedMemoryClassId) &&
+    !memoryConfigLoading &&
+    memoryConfig.classId === selectedMemoryClassId;
   useEffect(() => {
-    const classId = currentUser?.classId;
-    setMemoryConfig(emptyMemoryConfig(classId || ''));
-    if (!classId) return;
+    const classId = selectedMemoryClassId;
+    setMemoryConfig(emptyMemoryConfig(classId));
+    if (!classId) {
+      setMemoryConfigLoading(false);
+      return;
+    }
     let cancelled = false;
+    setMemoryConfigLoading(true);
     getMemoryGameConfig(classId)
       .then(config => { if (!cancelled && config) setMemoryConfig(config); })
-      .catch(error => console.error('[Load Memory Game Config Error]', error));
+      .catch(error => { if (!cancelled) console.error('[Load Memory Game Config Error]', error); })
+      .finally(() => { if (!cancelled) setMemoryConfigLoading(false); });
     return () => { cancelled = true; };
-  }, [currentUser?.classId, currentUser?.id]);
+  }, [currentUser?.id, selectedMemoryClassId]);
   const [storageItems, setStorageItems] = useState<PersonalStorageItem[]>([]);
   const [classFunds, setClassFunds] = useState<ClassFundItem[]>([]);
   const [classExpenses, setClassExpenses] = useState<ClassFundExpense[]>([]);
@@ -1389,6 +1479,16 @@ onDeleteLearningRecord={id => {
                 currentUser={currentUser}
                 students={managedStudents}
                 classOptions={managedClassOptions}
+                selectedFlowerClassId={selectedFlowerClassId}
+                onSelectedFlowerClassIdChange={setSelectedFlowerClassId}
+                selectedRacingClassId={selectedRacingClassId}
+                onSelectedRacingClassIdChange={setSelectedRacingClassId}
+                racingConfigLoading={racingConfigLoading}
+                racingConfigReady={racingConfigReady}
+                selectedMemoryClassId={selectedMemoryClassId}
+                onSelectedMemoryClassIdChange={setSelectedMemoryClassId}
+                memoryConfigLoading={memoryConfigLoading}
+                memoryConfigReady={memoryConfigReady}
                 selectedSpyClassId={selectedSpyClassId}
                 onSelectedSpyClassIdChange={setSelectedSpyClassId}
                 spyClassStudents={spyClassStudents}
@@ -1512,16 +1612,23 @@ onDeleteLearningRecord={id => {
 }}
                 flowerConfig={flowerConfig}
                 onUpdateFlowerConfig={async cfg => {
-  const classId = cfg.classId || currentUser?.classId;
-  if (!classId) throw new Error('Chưa xác định lớp học.');
-  if (!canManageClass(classId)) throw new Error('Bạn không có quyền chỉnh sửa trò chơi của lớp này.');
+  if (!selectedFlowerClassId) throw new Error('Chưa xác định lớp học.');
+  if (cfg.classId !== selectedFlowerClassId) {
+    console.warn('[Save Flower Config Blocked] Config classId does not match selected classId.');
+    throw new Error('Cấu hình Hái hoa không thuộc lớp đang thao tác.');
+  }
+  if (!canManageClass(selectedFlowerClassId)) throw new Error('Bạn không có quyền chỉnh sửa trò chơi của lớp này.');
 
-  const nextConfig = { ...cfg, classId };
-  await saveFlowerGameConfig(nextConfig);
-  setFlowerConfig(nextConfig);
+  await saveFlowerGameConfig(cfg);
+  setFlowerConfig(cfg);
 }}                racingConfig={racingConfig}
                 onUpdateRacingConfig={async cfg => {
-  if (!canManageClass(cfg.classId)) throw new Error('Bạn không có quyền chỉnh sửa đường đua của lớp này.');
+  if (!selectedRacingClassId) throw new Error('Chưa xác định lớp học.');
+  if (cfg.classId !== selectedRacingClassId) {
+    console.warn('[Save Racing Config Blocked] Config classId does not match selected classId.');
+    throw new Error('Cấu hình Đường đua không thuộc lớp đang thao tác.');
+  }
+  if (!canManageClass(selectedRacingClassId)) throw new Error('Bạn không có quyền chỉnh sửa đường đua của lớp này.');
   await saveRacingGameConfig(cfg);
   setRacingConfig(cfg);
 }}
@@ -1551,7 +1658,12 @@ onDeleteLearningRecord={id => {
 }}
                 memoryConfig={memoryConfig}
                 onUpdateMemoryConfig={async cfg => {
-  if (!canManageClass(cfg.classId)) throw new Error('Bạn không có quyền chỉnh sửa Thẻ nhớ của lớp này.');
+  if (!selectedMemoryClassId) throw new Error('Chưa xác định lớp học.');
+  if (cfg.classId !== selectedMemoryClassId) {
+    console.warn('[Save Memory Config Blocked] Config classId does not match selected classId.');
+    throw new Error('Cấu hình Thẻ nhớ không thuộc lớp đang thao tác.');
+  }
+  if (!canManageClass(selectedMemoryClassId)) throw new Error('Bạn không có quyền chỉnh sửa Thẻ nhớ của lớp này.');
   await saveMemoryGameConfig(cfg);
   setMemoryConfig(cfg);
 }}

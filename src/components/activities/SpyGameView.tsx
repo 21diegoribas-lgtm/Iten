@@ -31,6 +31,7 @@ import {
 interface SpyGameViewProps {
   currentUser: User;
   students: User[];
+  classOptions: Array<{ id: string; name: string }>;
   selectedClassId: string;
   onSelectedClassIdChange: (classId: string) => void;
   spyMissionLoading: boolean;
@@ -56,6 +57,7 @@ const SPY_MISSION_PRESETS = [
 export const SpyGameView: React.FC<SpyGameViewProps> = ({
   currentUser,
   students,
+  classOptions,
   selectedClassId,
   onSelectedClassIdChange,
   spyMissionLoading,
@@ -410,6 +412,30 @@ export const SpyGameView: React.FC<SpyGameViewProps> = ({
     <div className="space-y-6">
       {saveError && <div role="alert" className="fixed top-4 right-4 z-[200] max-w-md rounded-xl border border-rose-300 bg-rose-50 p-4 text-sm text-rose-800 shadow-lg">{saveError}<button className="ml-3 underline" onClick={() => setSaveError('')}>Đóng</button></div>}
       {saving && <div role="status" className="fixed inset-0 z-[190] flex items-center justify-center bg-slate-900/30"><p className="rounded-xl bg-white p-5 font-bold text-slate-800">Đang lưu trò chơi Gián điệp...</p></div>}
+      {isTeacherOrAdmin && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-purple-200 bg-white p-3 shadow-sm">
+          <label htmlFor="spy-class-selector" className="text-xs font-black uppercase tracking-wide text-slate-600">
+            Lớp
+          </label>
+          <select
+            id="spy-class-selector"
+            value={selectedClassId}
+            onChange={event => onSelectedClassIdChange(event.target.value)}
+            disabled={classOptions.length === 0}
+            className="min-h-10 min-w-44 flex-1 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-sm font-bold text-slate-800 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-100 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
+          >
+            {classOptions.length === 0 ? (
+              <option value="">Chưa có lớp</option>
+            ) : (
+              classOptions.map(classOption => (
+                <option key={classOption.id} value={classOption.id}>
+                  {classOption.name}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+      )}
       {/* 2.5D DETECTIVE ROOM SCENE */}
       <SpyDetectiveScene
         currentUser={currentUser}

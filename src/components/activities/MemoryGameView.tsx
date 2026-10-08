@@ -20,6 +20,9 @@ import {
 interface MemoryGameViewProps {
   currentUser: User;
   memoryConfig: MemoryCardGameConfig;
+  selectedClassId: string;
+  onSelectedClassIdChange: (classId: string) => void;
+  classOptions: Array<{ id: string; name: string }>;
   onUpdateMemoryConfig?: (config: MemoryCardGameConfig) => Promise<void>;
   onActivityPointSaved?: (point: ActivityPointRecord) => void;
 }
@@ -33,6 +36,9 @@ interface FlippedCardItem {
 export const MemoryGameView: React.FC<MemoryGameViewProps> = ({
   currentUser,
   memoryConfig,
+  selectedClassId,
+  onSelectedClassIdChange,
+  classOptions,
   onUpdateMemoryConfig,
   onActivityPointSaved
 }) => {
@@ -127,7 +133,13 @@ export const MemoryGameView: React.FC<MemoryGameViewProps> = ({
   };
 
   const finalizeResult = async (score: number, matches: number, completed: boolean) => {
-    if (saveLock.current || !sessionId.current || !currentUser.classId) return;
+    const memoryClassId = memoryConfig.classId;
+    if (saveLock.current || !sessionId.current || !memoryClassId) return;
+    if (currentUser.role === 'student' && currentUser.classId !== memoryClassId) {
+      setSaveError('Trò chơi không thuộc lớp của tài khoản học sinh.');
+      return;
+    }
+    if (currentUser.role !== 'student' && !currentUser.classId) return;
     const result: MemoryGameResultRecord = {
       id: sessionId.current, score, matchedPairs: matches, totalPairs: memoryConfig.pairs.length, completed,
       timeSpentSeconds: Math.max(0, memoryConfig.timeMinutes * 60 - memoryTimeLeft),
@@ -136,7 +148,7 @@ export const MemoryGameView: React.FC<MemoryGameViewProps> = ({
     const isAcademic = ['Điểm HĐ học tập', 'Thi đua học tập', 'Điểm học tập'].includes(memoryConfig.category || 'Thi đua học tập');
     const point: ActivityPointRecord | null = currentUser.role === 'student' ? {
       id: result.id, attemptId: result.id, userId: currentUser.id, studentName: currentUser.fullName,
-      classId: currentUser.classId, activityId: memoryConfig.id || 'memory_game',
+      classId: memoryClassId, activityId: memoryConfig.id || 'memory_game',
       activityName: memoryConfig.title || 'Thách thức thẻ nhớ', source: 'memory',
       category: memoryConfig.category || 'Thi đua học tập',
       pointType: isAcademic ? 'academic_activity' : 'training_activity', points: score,
@@ -147,8 +159,8 @@ export const MemoryGameView: React.FC<MemoryGameViewProps> = ({
     setSavingResult(true);
     setPendingResult({ score, matches, completed });
     try {
-      if (point) await saveMemoryResultAndPoint(currentUser.classId, currentUser.id, result, point);
-      else await saveMemoryResult(currentUser.classId, currentUser.id, result);
+      if (point) await saveMemoryResultAndPoint(memoryClassId, currentUser.id, result, point);
+      else await saveMemoryResult(memoryClassId, currentUser.id, result);
       if (point) onActivityPointSaved?.(point);
       setSaveError('');
       setPendingResult(null);
@@ -274,6 +286,30 @@ export const MemoryGameView: React.FC<MemoryGameViewProps> = ({
     <div className="bg-white rounded-3xl p-6 border border-amber-100 shadow-sm space-y-6">
       {saveError && <div role="alert" className="fixed top-4 right-4 z-[200] max-w-md rounded-xl border border-rose-300 bg-rose-50 p-4 text-sm text-rose-800 shadow-lg">{saveError}{pendingResult && <button className="ml-3 underline font-bold" onClick={() => finalizeResult(pendingResult.score, pendingResult.matches, pendingResult.completed)}>Lưu lại</button>}<button className="ml-3 underline" onClick={() => setSaveError('')}>Đóng</button></div>}
       {(savingResult || savingConfig) && <div role="status" className="fixed inset-0 z-[190] flex items-center justify-center bg-slate-900/30"><p className="rounded-xl bg-white p-5 font-bold text-slate-800">{savingResult ? 'Đang lưu kết quả và điểm...' : 'Đang lưu cấu hình...'}</p></div>}
+      {isTeacherOrAdmin && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50/70 p-3 shadow-sm">
+          <label htmlFor="memory-class-selector" className="text-xs font-black uppercase tracking-wide text-slate-600">
+            Lớp
+          </label>
+          <select
+            id="memory-class-selector"
+            value={selectedClassId}
+            onChange={event => onSelectedClassIdChange(event.target.value)}
+            disabled={classOptions.length === 0}
+            className="min-h-10 min-w-44 flex-1 rounded-xl border border-sky-200 bg-white px-3 py-2 text-sm font-bold text-slate-800 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
+          >
+            {classOptions.length === 0 ? (
+              <option value="">Chưa có lớp</option>
+            ) : (
+              classOptions.map(classOption => (
+                <option key={classOption.id} value={classOption.id}>
+                  {classOption.name}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>

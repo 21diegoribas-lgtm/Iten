@@ -39,6 +39,9 @@ import {
 interface LearningRaceSceneProps {
   currentUser?: User | null;
   racingConfig: RacingGameConfig;
+  selectedClassId: string;
+  onSelectedClassIdChange: (classId: string) => void;
+  classOptions: Array<{ id: string; name: string }>;
   onUpdateRacingConfig?: (newConfig: RacingGameConfig) => Promise<void>;
   onActivityPointSaved?: (point: ActivityPointRecord) => void;
   isTeacherOrAdmin?: boolean;
@@ -47,6 +50,9 @@ interface LearningRaceSceneProps {
 export const LearningRaceScene: React.FC<LearningRaceSceneProps> = ({
   currentUser,
   racingConfig,
+  selectedClassId,
+  onSelectedClassIdChange,
+  classOptions,
   onUpdateRacingConfig,
   onActivityPointSaved,
   isTeacherOrAdmin = false
@@ -803,6 +809,30 @@ export const LearningRaceScene: React.FC<LearningRaceSceneProps> = ({
       {historyError && <div role="alert" className="fixed top-4 right-4 z-[200] max-w-md rounded-xl border border-rose-300 bg-rose-50 p-4 text-sm text-rose-800 shadow-lg">{historyError}<button className="ml-3 underline" onClick={() => setHistoryError('')}>Đóng</button></div>}
       {savingAnswer && <div role="status" className="fixed inset-0 z-[190] flex items-center justify-center bg-slate-900/30"><p className="rounded-xl bg-white p-5 font-bold text-slate-800">Đang lưu lượt đua và điểm...</p></div>}
       {savingConfig && <div role="status" className="fixed inset-0 z-[190] flex items-center justify-center bg-slate-900/30"><p className="rounded-xl bg-white p-5 font-bold text-slate-800">Đang lưu cấu hình đường đua...</p></div>}
+      {isTeacherOrAdmin && (
+        <div className="relative z-40 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-300 bg-white/95 p-3 shadow-sm">
+          <label htmlFor="racing-class-selector" className="text-xs font-black uppercase tracking-wide text-slate-600">
+            Lớp
+          </label>
+          <select
+            id="racing-class-selector"
+            value={selectedClassId}
+            onChange={event => onSelectedClassIdChange(event.target.value)}
+            disabled={classOptions.length === 0}
+            className="min-h-10 min-w-44 flex-1 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-bold text-slate-800 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
+          >
+            {classOptions.length === 0 ? (
+              <option value="">Chưa có lớp</option>
+            ) : (
+              classOptions.map(classOption => (
+                <option key={classOption.id} value={classOption.id}>
+                  {classOption.name}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+      )}
       {/* 1. TOP CARTOON GAME HUD */}
       <div className="relative z-30 flex items-center justify-between flex-wrap gap-3 bg-white/90 backdrop-blur-md p-3 sm:p-4 rounded-3xl border-3 border-amber-300 shadow-md">
         {/* Title, Category Badge & Mode Badge */}
