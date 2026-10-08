@@ -596,113 +596,113 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       </div>
 
       {/* Quick Navigation Tabs for Dashboard */}
-      <div className="dashboard-subnav flex gap-2 overflow-x-auto bg-white/90 backdrop-blur-md p-2 rounded-2xl border border-slate-200 shadow-sm w-full min-w-0">
+      <div className="dashboard-subnav grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 bg-white/90 backdrop-blur-md p-2 rounded-2xl border border-slate-200 shadow-sm w-full min-w-0">
         <button
           onClick={() => { soundFx.playClick(); setActiveSubView('overview'); }}
-          className={`w-full min-w-0 px-2.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center sm:justify-start gap-1.5 truncate ${
+          className={`w-full min-w-0 min-h-12 px-2.5 sm:px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 text-center ${
             activeSubView === 'overview'
               ? 'bg-amber-500 text-white shadow-md'
               : 'text-slate-600 hover:bg-amber-50'
           }`}
         >
-          <span className="shrink-0">📊</span> <span className="truncate">Tổng quan</span>
+          <span className="shrink-0">📊</span> <span className="line-clamp-2 whitespace-normal leading-tight">Tổng quan</span>
         </button>
         <button
           onClick={() => { soundFx.playClick(); setActiveSubView('timetable'); }}
-          className={`w-full min-w-0 px-2.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center sm:justify-start gap-1.5 truncate ${
+          className={`w-full min-w-0 min-h-12 px-2.5 sm:px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 text-center ${
             activeSubView === 'timetable'
               ? 'bg-amber-500 text-white shadow-md'
               : 'text-slate-600 hover:bg-amber-50'
           }`}
         >
-          <span className="shrink-0">🗓️</span> <span className="truncate">Thời khóa biểu</span>
+          <span className="shrink-0">🗓️</span> <span className="line-clamp-2 whitespace-normal leading-tight">Thời khóa biểu</span>
         </button>
         <button
           onClick={() => { soundFx.playClick(); setActiveSubView('cleaning'); }}
-          className={`w-full min-w-0 px-2.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center sm:justify-start gap-1.5 truncate ${
+          className={`w-full min-w-0 min-h-12 px-2.5 sm:px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 text-center ${
             activeSubView === 'cleaning'
               ? 'bg-amber-500 text-white shadow-md'
               : 'text-slate-600 hover:bg-amber-50'
           }`}
         >
-          <span className="shrink-0">🧹</span> <span className="truncate">Lịch trực vệ sinh</span>
+          <span className="shrink-0">🧹</span> <span className="line-clamp-2 whitespace-normal leading-tight">Lịch trực vệ sinh</span>
         </button>
         <button
           onClick={() => { soundFx.playClick(); setActiveSubView('class_fund'); }}
-          className={`w-full min-w-0 px-2.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center sm:justify-start gap-1.5 truncate ${
+          className={`w-full min-w-0 min-h-12 px-2.5 sm:px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 text-center ${
             activeSubView === 'class_fund'
               ? 'bg-amber-500 text-white shadow-md'
               : 'text-slate-600 hover:bg-amber-50'
           }`}
         >
-          <span className="shrink-0">💰</span> <span className="truncate">Quỹ lớp</span>
+          <span className="shrink-0">💰</span> <span className="line-clamp-2 whitespace-normal leading-tight">Quỹ lớp</span>
         </button>
         <button
           onClick={() => { soundFx.playClick(); setActiveSubView('class_logbook'); }}
-          className={`w-full min-w-0 px-2.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center sm:justify-start gap-1.5 truncate ${
+          className={`w-full min-w-0 min-h-12 px-2.5 sm:px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 text-center ${
             activeSubView === 'class_logbook'
               ? 'bg-amber-500 text-white shadow-md'
               : 'text-slate-600 hover:bg-amber-50'
           }`}
         >
-          <span className="shrink-0">📖</span> <span className="truncate">Sổ đầu bài</span>
+          <span className="shrink-0">📖</span> <span className="line-clamp-2 whitespace-normal leading-tight">Sổ đầu bài</span>
         </button>
         <button
           onClick={() => { soundFx.playClick(); setActiveSubView('point_usage'); }}
-          className={`w-full min-w-0 px-2.5 sm:px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center sm:justify-start gap-1.5 truncate ${
+          className={`w-full min-w-0 min-h-12 px-2.5 sm:px-4 py-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 text-center ${
             activeSubView === 'point_usage'
               ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md'
               : 'text-amber-800 bg-amber-50/80 hover:bg-amber-100 border border-amber-200'
           }`}
         >
-          <span className="shrink-0">🎯</span> <span className="truncate">Sử dụng điểm</span>
+          <span className="shrink-0">🎯</span> <span className="line-clamp-2 whitespace-normal leading-tight">Sử dụng điểm</span>
         </button>
         {(currentUser.role === 'teacher' || currentUser.role === 'admin' || isClassOfficer) && (
           <button
             onClick={() => { soundFx.playClick(); setActiveSubView('notifications'); }}
-            className={`col-span-2 lg:col-auto w-full min-w-0 px-2.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center sm:justify-start gap-1.5 truncate ${
+            className={`w-full min-w-0 min-h-12 px-2.5 sm:px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 text-center ${
               activeSubView === 'notifications'
                 ? 'bg-amber-500 text-white shadow-md'
                 : 'text-slate-600 hover:bg-amber-50'
             }`}
           >
-            <span className="shrink-0">📢</span> <span className="truncate">Đăng thông báo</span>
+            <span className="shrink-0">📢</span> <span className="line-clamp-2 whitespace-normal leading-tight">Đăng thông báo</span>
           </button>
         )}
         {(currentUser.role === 'teacher' || currentUser.role === 'admin') && (
           <button
             onClick={() => { soundFx.playClick(); setActiveSubView('classes_and_students'); }}
-            className={`col-span-2 lg:col-auto w-full min-w-0 px-2.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center sm:justify-start gap-1.5 truncate ${
+            className={`w-full min-w-0 min-h-12 px-2.5 sm:px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 text-center ${
               activeSubView === 'classes_and_students' || activeSubView === 'students' || activeSubView === 'classes'
                 ? 'bg-amber-500 text-white shadow-md'
                 : 'text-slate-600 hover:bg-amber-50'
             }`}
           >
-            <span className="shrink-0">🏫</span> <span className="truncate">Quản lý lớp & Hồ sơ học sinh</span>
+            <span className="shrink-0">🏫</span> <span className="line-clamp-2 whitespace-normal leading-tight">Quản lý lớp & Hồ sơ học sinh</span>
           </button>
         )}
         {(currentUser.role === 'teacher' || currentUser.role === 'admin') && (
           <button
             onClick={() => { soundFx.playClick(); setActiveSubView('teacher_schedule'); }}
-            className={`w-full min-w-0 px-2.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center sm:justify-start gap-1.5 truncate ${
+            className={`w-full min-w-0 min-h-12 px-2.5 sm:px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 text-center ${
               activeSubView === 'teacher_schedule'
                 ? 'bg-amber-500 text-white shadow-md'
                 : 'text-slate-600 hover:bg-amber-50'
             }`}
           >
-            <span className="shrink-0">💼</span> <span className="truncate">Lịch làm việc</span>
+            <span className="shrink-0">💼</span> <span className="line-clamp-2 whitespace-normal leading-tight">Lịch làm việc</span>
           </button>
         )}
         {currentUser.role === 'admin' && (
           <button
             onClick={() => { soundFx.playClick(); setActiveSubView('teacher_management'); }}
-            className={`w-full min-w-0 px-2.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center sm:justify-start gap-1.5 truncate ${
+            className={`w-full min-w-0 min-h-12 px-2.5 sm:px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 text-center ${
               activeSubView === 'teacher_management'
                 ? 'bg-amber-500 text-white shadow-md'
                 : 'text-slate-600 hover:bg-amber-50'
             }`}
           >
-            <span className="shrink-0">👨‍🏫</span> <span className="truncate">Quản lý GV ({teachers.length})</span>
+            <span className="shrink-0">👨‍🏫</span> <span className="line-clamp-2 whitespace-normal leading-tight">Quản lý GV ({teachers.length})</span>
           </button>
         )}
         {(currentUser.role === 'teacher' || currentUser.role === 'admin') && (
@@ -721,9 +721,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               });
               setShowProfileModal(true);
             }}
-            className="col-span-2 lg:col-auto lg:ml-auto w-full min-w-0 px-2.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 flex items-center justify-center sm:justify-start gap-1.5 truncate"
+            className="w-full min-w-0 min-h-12 px-2.5 sm:px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 flex items-center justify-center gap-1.5 text-center"
           >
-            <span className="shrink-0">⚙️</span> <span className="truncate">Cài đặt cá nhân</span>
+            <span className="shrink-0">⚙️</span> <span className="line-clamp-2 whitespace-normal leading-tight">Cài đặt cá nhân</span>
           </button>
         )}
       </div>
