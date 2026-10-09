@@ -9,6 +9,7 @@ import {
 import { REWARD_CATEGORIES, VIOLATION_CATEGORIES } from '../../constants/competitionCategories';
 import { soundFx } from '../../utils/sound';
 import { normalizeStudentTeam, STUDENT_TEAMS } from '../../utils/studentTeam';
+import { formatRecordedBy } from '../../utils/recordedBy';
 
 export const TRAINING_REWARD_PRESETS = [
   { id: 'tr1', name: '10 điểm tốt học tập', points: 10, defaultReason: 'Đạt điểm 10 kiểm tra học tập xuất sắc' },
@@ -398,11 +399,18 @@ export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
       alert('Học sinh chưa được gán lớp. Không thể ghi nhận điểm rèn luyện.');
       return;
     }
+    const recorderName = currentUser.fullName.trim();
+    if (!recorderName) {
+      alert('Tài khoản chưa có họ tên. Không thể ghi nhận người nhập điểm.');
+      return;
+    }
     const finalCat = categoryName === 'Khác' ? customCategory.trim() || 'Khác' : categoryName;
     soundFx.playSuccess();
 
     const calcPoints = recordType === 'reward' ? Math.abs(points) : -Math.abs(points);
-    const recordedByTitle = isTeacherOrAdmin
+    const recordedByTitle = currentUser.role === 'admin'
+      ? ' (QTV)'
+      : currentUser.role === 'teacher'
       ? ' (GV)'
       : isOfficer
       ? ` (${currentUser.position || 'Ban cán sự'})`
@@ -421,7 +429,7 @@ export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
       week: selectedWeek,
       month: 8,
       semester: formSemester,
-      recordedBy: currentUser.fullName + recordedByTitle
+      recordedBy: recorderName + recordedByTitle
     });
     setReason('');
     setCustomCategory('');
@@ -1514,7 +1522,7 @@ export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
                         </div>
                         <p className="text-xs text-slate-600">{r.reason}</p>
                         <div className="text-[11px] text-slate-400">
-                          Tuần {r.week} • {r.semester} • Ngày {r.date} • Ghi bởi: {r.recordedBy}
+                          Tuần {r.week} • {r.semester} • Ngày {r.date} • Ghi bởi: {formatRecordedBy(r.recordedBy)}
                         </div>
                       </div>
 

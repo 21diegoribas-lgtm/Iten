@@ -6,6 +6,7 @@ import {
   PointUsageTransaction
 } from '../../types';
 import { soundFx } from '../../utils/sound';
+import { formatRecordedBy } from '../../utils/recordedBy';
 import {
   BookOpen,
   Plus,
@@ -386,6 +387,11 @@ export const LearningCompetitionTab: React.FC<LearningCompetitionTabProps> = ({
       alert('Học sinh chưa được gán lớp. Không thể ghi nhận điểm học tập.');
       return;
     }
+    const recorderName = currentUser.fullName.trim();
+    if (!recorderName) {
+      alert('Tài khoản chưa có họ tên. Không thể ghi nhận người nhập điểm.');
+      return;
+    }
 
     if (formRewardPoints <= 0 && formViolationPoints <= 0) {
       alert('Vui lòng nhập điểm cộng hoặc điểm trừ (lớn hơn 0)!');
@@ -394,7 +400,9 @@ export const LearningCompetitionTab: React.FC<LearningCompetitionTabProps> = ({
 
     soundFx.playSuccess();
 
-    const recordedByTitle = ' (GV)';
+    const recordedBy = currentUser.role === 'admin'
+      ? `${recorderName} (QTV)`
+      : `${recorderName} (GV)`;
 
     let addedCount = 0;
 
@@ -414,7 +422,7 @@ export const LearningCompetitionTab: React.FC<LearningCompetitionTabProps> = ({
         week: formWeek,
         month: 8,
         semester: formSemester,
-        recordedBy: currentUser.fullName + recordedByTitle
+        recordedBy
       };
       onAddLearningRecord(rewardRec);
       addedCount++;
@@ -436,7 +444,7 @@ export const LearningCompetitionTab: React.FC<LearningCompetitionTabProps> = ({
         week: formWeek,
         month: 8,
         semester: formSemester,
-        recordedBy: currentUser.fullName + recordedByTitle
+        recordedBy
       };
       onAddLearningRecord(violationRec);
       addedCount++;
@@ -1038,7 +1046,7 @@ export const LearningCompetitionTab: React.FC<LearningCompetitionTabProps> = ({
                   </div>
                   <p className="text-xs font-semibold text-slate-700">Lí do: {r.activityName}</p>
                   <div className="text-[11px] text-slate-400">
-                    {r.semester} • Ngày {r.date} • Ghi bởi: {r.recordedBy}
+                    {r.semester} • Ngày {r.date} • Ghi bởi: {formatRecordedBy(r.recordedBy)}
                   </div>
                 </div>
 
