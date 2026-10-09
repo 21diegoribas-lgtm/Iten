@@ -424,18 +424,28 @@ match /notificationReads/{readId} {
       }
 
       match /attendanceRecords/{recordId} {
-        allow read: if isAuthenticated() && (isAdmin() || resource.data.classId == getUserClassId());
-        allow create: if (isAdmin() || isTeacher() || isClassOfficer()) &&
-          (isAdmin() || request.resource.data.classId == getUserClassId()) &&
+        allow read: if isAuthenticated() && (
+          isAdmin() ||
+          resource.data.classId == getUserClassId() ||
+          teacherManagesClass(resource.data.classId)
+        );
+        allow create: if (
+          isAdmin() ||
+          teacherManagesClass(request.resource.data.classId) ||
+          (isClassOfficer() && request.resource.data.classId == getUserClassId())
+        ) &&
           request.resource.data.id == recordId && request.resource.data.studentId is string &&
           request.resource.data.date is string &&
           request.resource.data.status in ['Có mặt', 'Vắng có phép', 'Vắng không phép', 'Đi muộn'];
-        allow update: if (isAdmin() || isTeacher() || isClassOfficer()) &&
+        allow update: if (
+          isAdmin() ||
+          teacherManagesClass(resource.data.classId) ||
+          (isClassOfficer() && resource.data.classId == getUserClassId())
+        ) &&
           request.resource.data.classId == resource.data.classId &&
-          (isAdmin() || resource.data.classId == getUserClassId()) &&
           request.resource.data.studentId == resource.data.studentId &&
           request.resource.data.date == resource.data.date;
-        allow delete: if isAdmin() || (isTeacher() && resource.data.classId == getUserClassId());
+        allow delete: if isAdmin() || teacherManagesClass(resource.data.classId);
       }
 
       // Point entries entered directly by teachers/admins. Activity-generated

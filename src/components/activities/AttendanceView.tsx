@@ -38,7 +38,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ currentUser, stu
 
   const recordFor = (student: User, status: AttendanceRecord['status'], note?: string): AttendanceRecord => {
     const month = Number(date.slice(5, 7));
-    return { id: `${student.classId || currentUser.classId}_${student.id}_${date}`, classId: student.classId || currentUser.classId || '', date,
+    return { id: `${student.classId || ''}_${student.id}_${date}`, classId: student.classId || '', date,
       studentId: student.id, studentName: student.fullName, status, note: note?.trim() || undefined, monthNumber: month,
       semester: month >= 8 || month === 1 ? 'Học kỳ 1' : 'Học kỳ 2', dayOfWeek: dayName(date), recordedBy: currentUser.fullName };
   };

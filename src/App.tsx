@@ -1632,8 +1632,23 @@ onDeleteLearningRecord={async id => {
   await finishSpyMissionAndAward(mission, points);
 }}
                 onSaveAttendance={async records => {
-  const isOfficer = currentUser?.role === 'student' && Boolean(currentUser.position) && currentUser.position !== 'thành viên';
-  if (!currentUser || (!canManage && !isOfficer)) throw new Error('Bạn không có quyền điểm danh.');
+  if (!currentUser) throw new Error('Bạn không có quyền điểm danh.');
+
+  const recordsMatchStudents = records.every(record => {
+    if (!record.classId) return false;
+    const student = students.find(item => item.id === record.studentId);
+    return student?.classId === record.classId;
+  });
+  if (!recordsMatchStudents) throw new Error('Học sinh chưa có lớp hoặc bản ghi điểm danh không đúng lớp.');
+
+  const isOfficer = currentUser.role === 'student' &&
+    Boolean(currentUser.position) &&
+    currentUser.position !== 'thành viên';
+  const isAuthorized = currentUser.role === 'admin' ||
+    (currentUser.role === 'teacher' && records.every(record => canManageClass(record.classId))) ||
+    (isOfficer && records.every(record => record.classId === currentUser.classId));
+  if (!isAuthorized) throw new Error('Bạn không có quyền điểm danh lớp này.');
+
   await saveAttendanceRecords(records);
 }}
                 onAwardAttendance={async points => {
