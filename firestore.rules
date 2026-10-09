@@ -956,7 +956,7 @@ match /classExpenses/{itemId} {
         allow get, list: if isAuthenticated() && (
           resource.data.userId == request.auth.uid ||
           isAdmin() ||
-          (isTeacher() && resource.data.classId == getUserClassId())
+          (isTeacher() && teacherManagesClass(resource.data.classId))
         );
 
         allow create: if isStudent() &&
