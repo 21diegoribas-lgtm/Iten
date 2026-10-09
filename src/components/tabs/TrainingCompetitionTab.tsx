@@ -338,13 +338,17 @@ export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
       alert('Vui lòng chọn học sinh và nhập lý do / mô tả!');
       return;
     }
+    if (!st.classId) {
+      alert('Học sinh chưa được gán lớp. Không thể cập nhật điểm rèn luyện.');
+      return;
+    }
 
     const calcPoints = editType === 'reward' ? Math.abs(editPoints) : -Math.abs(editPoints);
     const updated: DisciplineRecord = {
       ...editingDisciplineRecord,
       studentId: st.id,
       studentName: st.fullName,
-      classId: st.classId || 'c1',
+      classId: st.classId,
       type: editType,
       categoryName: editCategoryName.trim() || (editType === 'reward' ? 'Khen thưởng' : 'Vi phạm'),
       points: calcPoints,
@@ -390,6 +394,10 @@ export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
       alert('Vui lòng chọn học sinh và nhập nội dung / lý do thi đua!');
       return;
     }
+    if (!st.classId) {
+      alert('Học sinh chưa được gán lớp. Không thể ghi nhận điểm rèn luyện.');
+      return;
+    }
     const finalCat = categoryName === 'Khác' ? customCategory.trim() || 'Khác' : categoryName;
     soundFx.playSuccess();
 
@@ -404,7 +412,7 @@ export const TrainingCompetitionTab: React.FC<TrainingCompetitionTabProps> = ({
       id: 'dr_' + Date.now(),
       studentId: st.id,
       studentName: st.fullName,
-      classId: st.classId || 'c1',
+      classId: st.classId,
       type: recordType,
       categoryName: finalCat,
       points: calcPoints,

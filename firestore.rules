@@ -444,36 +444,32 @@ match /notificationReads/{readId} {
         allow read: if isAuthenticated() && (
           isAdmin() ||
           resource.data.studentId == request.auth.uid ||
-          (isTeacher() && resource.data.classId == getUserClassId())
+          (isTeacher() && teacherManagesClass(resource.data.classId))
         );
-        allow create: if (isAdmin() || (isTeacher() && request.resource.data.classId == getUserClassId())) &&
+        allow create: if (isAdmin() || (isTeacher() && teacherManagesClass(request.resource.data.classId))) &&
           request.resource.data.id == recordId && request.resource.data.studentId is string &&
           request.resource.data.classId is string && request.resource.data.points is number;
-        allow update: if isAdmin() || (
-          isTeacher() && resource.data.classId == getUserClassId() &&
+        allow update: if (isAdmin() || (isTeacher() && teacherManagesClass(resource.data.classId))) &&
           request.resource.data.id == resource.data.id &&
           request.resource.data.studentId == resource.data.studentId &&
-          request.resource.data.classId == resource.data.classId
-        );
-        allow delete: if isAdmin() || (isTeacher() && resource.data.classId == getUserClassId());
+          request.resource.data.classId == resource.data.classId;
+        allow delete: if isAdmin() || (isTeacher() && teacherManagesClass(resource.data.classId));
       }
 
       match /disciplineRecords/{recordId} {
         allow read: if isAuthenticated() && (
           isAdmin() ||
           resource.data.studentId == request.auth.uid ||
-          (isTeacher() && resource.data.classId == getUserClassId())
+          (isTeacher() && teacherManagesClass(resource.data.classId))
         );
-        allow create: if (isAdmin() || (isTeacher() && request.resource.data.classId == getUserClassId())) &&
+        allow create: if (isAdmin() || (isTeacher() && teacherManagesClass(request.resource.data.classId))) &&
           request.resource.data.id == recordId && request.resource.data.studentId is string &&
           request.resource.data.classId is string && request.resource.data.points is number;
-        allow update: if isAdmin() || (
-          isTeacher() && resource.data.classId == getUserClassId() &&
+        allow update: if (isAdmin() || (isTeacher() && teacherManagesClass(resource.data.classId))) &&
           request.resource.data.id == resource.data.id &&
           request.resource.data.studentId == resource.data.studentId &&
-          request.resource.data.classId == resource.data.classId
-        );
-        allow delete: if isAdmin() || (isTeacher() && resource.data.classId == getUserClassId());
+          request.resource.data.classId == resource.data.classId;
+        allow delete: if isAdmin() || (isTeacher() && teacherManagesClass(resource.data.classId));
       }
 
       match /cleaningSchedules/{classId} {

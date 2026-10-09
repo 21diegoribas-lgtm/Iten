@@ -1365,23 +1365,33 @@ onAddTeachersBulk={newTeachers => {
                 pointUsageTransactions={pointUsageTransactions}
                 onAddPointUsageTransaction={handleAddPointUsageTransaction}
                 onCancelPointUsageTransaction={handleCancelPointUsageTransaction}
-		onAddDisciplineRecord={rec => {
+		onAddDisciplineRecord={async rec => {
   if (!canManageClass(rec.classId)) return;
 
-  void saveAppDocument('disciplineRecords', rec).catch(error => console.error('[Save Discipline Record Error]', error));
-  setDisciplineRecords(prev => [rec, ...prev]);
+  try {
+    await saveAppDocument('disciplineRecords', rec);
+    setDisciplineRecords(prev => [rec, ...prev]);
+  } catch (error) {
+    console.error('[Save Discipline Record Error]', error);
+    alert('Không thể lưu dữ liệu. Vui lòng thử lại.');
+  }
 }}
 
-onUpdateDisciplineRecord={rec => {
+onUpdateDisciplineRecord={async rec => {
   if (!canManageClass(rec.classId)) return;
 
-  void saveAppDocument('disciplineRecords', rec).catch(error => console.error('[Update Discipline Record Error]', error));
-  setDisciplineRecords(prev =>
-    prev.map(r => r.id === rec.id ? rec : r)
-  );
+  try {
+    await saveAppDocument('disciplineRecords', rec);
+    setDisciplineRecords(prev =>
+      prev.map(r => r.id === rec.id ? rec : r)
+    );
+  } catch (error) {
+    console.error('[Update Discipline Record Error]', error);
+    alert('Không thể lưu dữ liệu. Vui lòng thử lại.');
+  }
 }}
 
-onDeleteDisciplineRecord={id => {
+onDeleteDisciplineRecord={async id => {
   if (!canManage) return;
 
   const target = disciplineRecords.find(r => r.id === id);
@@ -1389,10 +1399,15 @@ onDeleteDisciplineRecord={id => {
 
   if (!canManageClass(target.classId)) return;
 
-  void deleteAppDocument('disciplineRecords', id).catch(error => console.error('[Delete Discipline Record Error]', error));
-  setDisciplineRecords(prev =>
-    prev.filter(r => r.id !== id)
-  );
+  try {
+    await deleteAppDocument('disciplineRecords', id);
+    setDisciplineRecords(prev =>
+      prev.filter(r => r.id !== id)
+    );
+  } catch (error) {
+    console.error('[Delete Discipline Record Error]', error);
+    alert('Không thể xóa dữ liệu. Vui lòng thử lại.');
+  }
 }}         
                 onAddComplaint={cp => {
   void saveAppDocument('complaints', cp).catch(console.error);
@@ -1439,25 +1454,35 @@ onResolveComplaint={(id, response) => {
                 pointUsageTransactions={pointUsageTransactions}
                 onAddPointUsageTransaction={handleAddPointUsageTransaction}
                 onCancelPointUsageTransaction={handleCancelPointUsageTransaction}
-                onAddLearningRecord={rec => {
+                onAddLearningRecord={async rec => {
   if (!canManageClass(rec.classId)) return;
   const allowedRecord = learningRecordForCurrentTeacher(rec);
   if (!allowedRecord) return;
-  void saveAppDocument('learningRecords', allowedRecord).catch(error => console.error('[Save Learning Record Error]', error));
-  setLearningRecords(prev => [allowedRecord, ...prev]);
+  try {
+    await saveAppDocument('learningRecords', allowedRecord);
+    setLearningRecords(prev => [allowedRecord, ...prev]);
+  } catch (error) {
+    console.error('[Save Learning Record Error]', error);
+    alert('Không thể lưu dữ liệu. Vui lòng thử lại.');
+  }
 }}
 
-onUpdateLearningRecord={rec => {
+onUpdateLearningRecord={async rec => {
   if (!canManageClass(rec.classId)) return;
   const existing = learningRecords.find(item => item.id === rec.id);
   if (currentUser.role === 'teacher' && existing?.subjectName?.trim().toLocaleLowerCase('vi') !== currentUser.subject?.trim().toLocaleLowerCase('vi')) return;
   const allowedRecord = learningRecordForCurrentTeacher(rec);
   if (!allowedRecord) return;
-  void saveAppDocument('learningRecords', allowedRecord).catch(error => console.error('[Update Learning Record Error]', error));
-  setLearningRecords(prev => prev.map(r => r.id === rec.id ? allowedRecord : r));
+  try {
+    await saveAppDocument('learningRecords', allowedRecord);
+    setLearningRecords(prev => prev.map(r => r.id === rec.id ? allowedRecord : r));
+  } catch (error) {
+    console.error('[Update Learning Record Error]', error);
+    alert('Không thể lưu dữ liệu. Vui lòng thử lại.');
+  }
 }}
 
-onDeleteLearningRecord={id => {
+onDeleteLearningRecord={async id => {
   if (!canManage) return;
 
   const target = learningRecords.find(r => r.id === id);
@@ -1465,10 +1490,15 @@ onDeleteLearningRecord={id => {
 
   if (!canManageClass(target.classId)) return;
 
-  void deleteAppDocument('learningRecords', id).catch(error => console.error('[Delete Learning Record Error]', error));
-  setLearningRecords(prev =>
-    prev.filter(r => r.id !== id)
-  );
+  try {
+    await deleteAppDocument('learningRecords', id);
+    setLearningRecords(prev =>
+      prev.filter(r => r.id !== id)
+    );
+  } catch (error) {
+    console.error('[Delete Learning Record Error]', error);
+    alert('Không thể xóa dữ liệu. Vui lòng thử lại.');
+  }
 }}
               />
             )}
@@ -1669,18 +1699,28 @@ onDeleteLearningRecord={id => {
 }}
                 disciplineRecords={disciplineRecords}
                 learningRecords={learningRecords}
-                onAddLearningRecord={rec => {
+                onAddLearningRecord={async rec => {
                   if (!canManage || !canManageClass(rec.classId)) return;
                   const allowedRecord = learningRecordForCurrentTeacher(rec);
                   if (!allowedRecord) return;
-                  void saveAppDocument('learningRecords', allowedRecord).catch(error => console.error('[Save Learning Record Error]', error));
-                  setLearningRecords(prev => [allowedRecord, ...prev]);
+                  try {
+                    await saveAppDocument('learningRecords', allowedRecord);
+                    setLearningRecords(prev => [allowedRecord, ...prev]);
+                  } catch (error) {
+                    console.error('[Save Learning Record Error]', error);
+                    alert('Không thể lưu dữ liệu. Vui lòng thử lại.');
+                  }
                 }}
-                onAddDisciplineRecord={rec => {
+                onAddDisciplineRecord={async rec => {
   if (!canManageClass(rec.classId)) return;
 
-  void saveAppDocument('disciplineRecords', rec).catch(error => console.error('[Save Discipline Record Error]', error));
-  setDisciplineRecords(prev => [rec, ...prev]);
+  try {
+    await saveAppDocument('disciplineRecords', rec);
+    setDisciplineRecords(prev => [rec, ...prev]);
+  } catch (error) {
+    console.error('[Save Discipline Record Error]', error);
+    alert('Không thể lưu dữ liệu. Vui lòng thử lại.');
+  }
 }}
                 onActivityPointSaved={mergeActivityPoint}
               />

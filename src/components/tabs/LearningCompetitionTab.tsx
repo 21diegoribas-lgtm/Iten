@@ -204,13 +204,17 @@ export const LearningCompetitionTab: React.FC<LearningCompetitionTabProps> = ({
       alert('Vui lòng chọn học sinh và nhập nội dung lí do!');
       return;
     }
+    if (!st.classId) {
+      alert('Học sinh chưa được gán lớp. Không thể cập nhật điểm học tập.');
+      return;
+    }
 
     const calcPoints = editType === 'reward' ? Math.abs(editPoints) : -Math.abs(editPoints);
     const updated: LearningRecord = {
       ...editingRecord,
       studentId: st.id,
       studentName: st.fullName,
-      classId: st.classId || 'c1',
+      classId: st.classId,
       categoryType: 'subject',
       subjectName: editSubjectName,
       type: editType,
@@ -291,6 +295,10 @@ export const LearningCompetitionTab: React.FC<LearningCompetitionTabProps> = ({
     const st = students.find((s) => s.id === usePointsStudentId);
     if (!st) {
       alert('Vui lòng chọn học sinh!');
+      return;
+    }
+    if (!st.classId) {
+      alert('Học sinh chưa được gán lớp. Không thể ghi nhận điểm học tập.');
       return;
     }
     if (usePointsAmount <= 0) {
@@ -374,6 +382,10 @@ export const LearningCompetitionTab: React.FC<LearningCompetitionTabProps> = ({
       alert('Vui lòng chọn học sinh!');
       return;
     }
+    if (!st.classId) {
+      alert('Học sinh chưa được gán lớp. Không thể ghi nhận điểm học tập.');
+      return;
+    }
 
     if (formRewardPoints <= 0 && formViolationPoints <= 0) {
       alert('Vui lòng nhập điểm cộng hoặc điểm trừ (lớn hơn 0)!');
@@ -392,7 +404,7 @@ export const LearningCompetitionTab: React.FC<LearningCompetitionTabProps> = ({
         id: `lr_${Date.now()}_r_${Math.random().toString(36).substring(2, 6)}`,
         studentId: st.id,
         studentName: st.fullName,
-        classId: st.classId || 'c1',
+        classId: st.classId,
         categoryType: 'subject',
         subjectName: formSubjectName,
         type: 'reward',
@@ -414,7 +426,7 @@ export const LearningCompetitionTab: React.FC<LearningCompetitionTabProps> = ({
         id: `lr_${Date.now()}_v_${Math.random().toString(36).substring(2, 6)}`,
         studentId: st.id,
         studentName: st.fullName,
-        classId: st.classId || 'c1',
+        classId: st.classId,
         categoryType: 'subject',
         subjectName: formSubjectName,
         type: 'violation',
